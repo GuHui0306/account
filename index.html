@@ -317,6 +317,7 @@ function renderTx() {
   var sOut = 0, sIn = 0;
   rows.forEach(function (t) {
     if (t.cat === '轉帳' || t.cat === '卡費' || (t.cur && t.cur !== 'TWD')) return;
+    if (t.cat === '股票') return;   // 股票買賣是資產換手，不算支出也不算收入（股息照算）
     sOut += parseFloat(String(t.out).replace(/,/g, '')) || 0; sIn += parseFloat(String(t.inc).replace(/,/g, '')) || 0;
   });
   $('txSum').innerHTML = '<div><div class="muted">支出</div><div class="v down">' + fmt(sOut) + '</div></div>' +
