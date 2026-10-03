@@ -115,6 +115,30 @@ label{font-size:13px;color:var(--muted)}
 .stot{display:flex;align-items:center;justify-content:space-between;padding:6px 16px 4px}
 .stot .t{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700}
 .stot .v{font-size:17px;font-weight:700}
+
+.cal div[data-d]{cursor:pointer}
+#daySheet{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:30;display:none;align-items:flex-end}
+.dpanel{background:var(--bg);width:100%;max-height:90vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:6px 16px calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.grab{width:40px;height:5px;border-radius:3px;background:#48484a;margin:4px auto 6px}
+.dtop{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:14px}
+.dtop b{font-size:17px}
+.dtop button{justify-self:end;background:#3a3a3c;color:#f5c542;border:0;border-radius:18px;padding:9px 16px;font-size:15px;font-weight:600;font-family:inherit}
+.dhead .muted{font-size:13px}.dhead .bigp{font-size:28px;font-weight:700;margin:4px 0 14px;letter-spacing:-.3px}
+.dhead .bigp span{margin-right:10px}
+.dbox{background:var(--card);border-radius:14px;padding:2px 14px;margin-bottom:20px}
+.drow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.drow:last-child{border-bottom:0}
+.drow .di{width:22px;text-align:center;font-size:16px}
+.drow .dl{flex:1}.drow .dl .t{font-size:15px}.drow .dl .s{font-size:11px;color:var(--muted);margin-top:1px}
+.drow .dv{font-size:16px;font-weight:600}
+.drow.tot .t{font-weight:700}
+.comp{display:grid;grid-template-columns:1fr 110px 92px;align-items:center;gap:8px;padding:9px 0}
+.comp .cd{font-size:15px;font-weight:600}.comp .cm{font-size:11px;color:var(--muted)}.comp .cfx{font-size:11px;color:#f0a35e}
+.comp .cb{position:relative;height:12px}
+.comp .cb:before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--line)}
+.comp .cb i{position:absolute;top:0;height:12px;border-radius:3px}
+.comp .ca{text-align:right;font-size:15px;font-weight:600}
 </style>
 </head>
 <body>
@@ -154,11 +178,6 @@ label{font-size:13px;color:var(--muted)}
       <div id="stPnl" class="muted"></div>
       <div class="chartbox" style="margin-top:10px"><canvas id="histChart"></canvas></div>
     </div>
-    <div class="card"><h2>持股</h2><div id="stList"></div></div>
-  </section>
-
-  <!-- 漲幅月曆 -->
-  <section id="p2" class="page">
     <div class="card">
       <div class="calhead">
         <button onclick="moveMonth(-1)">‹</button>
@@ -166,8 +185,9 @@ label{font-size:13px;color:var(--muted)}
         <button onclick="moveMonth(1)">›</button>
       </div>
       <div class="cal" id="cal"></div>
-      <div class="muted" style="margin-top:10px">已扣除資金進出（定期定額加碼不算上漲）</div>
+      <div class="muted" style="margin-top:10px">點日期看當天損益組成・已扣除資金進出</div>
     </div>
+    <div class="card"><h2>持股</h2><div id="stList"></div></div>
   </section>
 
   <!-- 明細 -->
@@ -222,9 +242,8 @@ label{font-size:13px;color:var(--muted)}
 <nav id="nav" style="display:none">
   <button class="on" onclick="go(0)">總覽</button>
   <button onclick="go(1)">股票</button>
-  <button onclick="go(2)">漲幅</button>
-  <button onclick="go(3)">明細</button>
-  <button onclick="go(4)">記一筆</button>
+  <button onclick="go(2)">明細</button>
+  <button onclick="go(3)">記一筆</button>
 </nav>
 
 <div id="vToggle"><button id="tRec" class="on" onclick="setView('rec')">記錄</button><button id="tRep" onclick="setView('rep')">報表</button></div>
@@ -237,6 +256,14 @@ label{font-size:13px;color:var(--muted)}
   </div>
   <div class="stot" id="shTot"></div>
   <div id="shList"></div>
+</div>
+
+<div id="daySheet" onclick="if(event.target===this)closeDay()">
+  <div class="dpanel">
+    <div class="grab"></div>
+    <div class="dtop"><span></span><b id="dTitle"></b><button onclick="closeDay()">完成</button></div>
+    <div id="dBody"></div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -287,8 +314,8 @@ function load() {
 function go(i) {
   var pages = document.querySelectorAll('.page'), btns = document.querySelectorAll('nav button');
   for (var k = 0; k < pages.length; k++) { pages[k].classList.toggle('on', k === i); btns[k].classList.toggle('on', k === i); }
-  if (i === 1) drawChart();
-  $('vToggle').style.display = i === 3 ? 'flex' : 'none';
+  if (i === 1) { drawChart(); renderCal(); }
+  $('vToggle').style.display = i === 2 ? 'flex' : 'none';
   window.scrollTo(0, 0);
 }
 
@@ -372,12 +399,61 @@ function renderCal() {
       body = '<span class="' + cls(h.pnl) + '">' + pct(h.pct) + '<br>' + sgn(h.pnl / 1000, 1) + 'k</span>';
       sum += h.pnl; if (num(h.pct)) prod *= 1 + h.pct; n++; if (h.pnl > 0) upDays++;
     }
-    html += '<div class="' + c + '"><b>' + d + '</b>' + body + '</div>';
+    html += '<div class="' + c + '"' + (h && num(h.pnl) ? ' data-d="' + key + '"' : '') + '><b>' + d + '</b>' + body + '</div>';
   }
   $('cal').innerHTML = html;
   $('calTitle').textContent = y + ' 年 ' + (m + 1) + ' 月';
   $('calSum').innerHTML = n ? '當月 <span class="' + cls(sum) + '">' + pct(prod - 1) + '　' + sgn(sum) + '</span>　上漲 ' + upDays + '/' + n + ' 天' : '本月尚無資料';
 }
+
+
+/* ---------- 當日損益組成 ---------- */
+function openDay(key) {
+  var hs = D.hist, i = -1;
+  for (var k = 0; k < hs.length; k++) if (hs[k].d === key) i = k;
+  if (i < 1) return;
+  var h = hs[i], p = hs[i - 1], cols = D.histCols || [], fx1 = h.fx, fx0 = p.fx;
+  var byCode = {}, order = [], priceSum = 0, fxSum = 0, missing = false;
+  D.stocks.forEach(function (s, j) {
+    var col = cols[j] === '價_' + s.code ? j : cols.indexOf('價_' + s.code);
+    var p1 = col >= 0 && h.px ? h.px[col] : null, p0 = col >= 0 && p.px ? p.px[col] : null;
+    if (!num(p1) || !num(p0) || !num(s.qty)) { missing = true; return; }
+    var us = s.cur === 'USD', pr, fx = 0;
+    if (us) { pr = s.qty * (p1 - p0) * fx0; fx = s.qty * p1 * (fx1 - fx0); } else pr = s.qty * (p1 - p0);
+    var o = byCode[s.code] || (byCode[s.code] = { code: s.code, mkt: s.market || (us ? '美股' : '台股'), us: us, v: 0, fx: 0 });
+    if (!o.n) { o.n = 1; order.push(o); }
+    o.v += pr + fx; o.fx += fx; priceSum += pr; fxSum += fx;
+  });
+  var total = num(h.pnl) ? h.pnl : priceSum + fxSum;
+  if (missing) { priceSum = total - fxSum; }
+  var dt = new Date(key + 'T00:00:00');
+  $('dTitle').textContent = (dt.getMonth() + 1) + '月' + dt.getDate() + '日（' + WK[dt.getDay()] + '）';
+  var c = function (v) { return Math.round(v) > 0 ? 'up' : Math.round(v) < 0 ? 'down' : ''; };
+  var sv = function (v) { v = Math.round(v); return (v > 0 ? '+$' : v < 0 ? '-$' : '$') + fmt(Math.abs(v)); };
+  var rows = [
+    ['📈', '股價變動', '持股的價格漲跌', priceSum],
+    ['💱', '匯率變動', '美股換算台幣的匯差', fxSum],
+    ['⇄', '資金進出', '加碼／減碼（已從損益排除）', h.flow || 0]
+  ];
+  order.sort(function (a, b) { return Math.abs(b.v) - Math.abs(a.v); });
+  var mx = order.reduce(function (m, o) { return Math.max(m, Math.abs(o.v)); }, 1);
+  $('dBody').innerHTML =
+    '<div class="dhead"><div class="muted">當日損益</div><div class="bigp ' + c(total) + '"><span>' + pct(h.pct) + '</span>' + sv(total) + '</div></div>' +
+    '<div class="dbox">' + rows.map(function (r) {
+      return '<div class="drow"><div class="di">' + r[0] + '</div><div class="dl"><div class="t">' + r[1] + '</div><div class="s">' + r[2] + '</div></div><div class="dv ' + (r[1] === '資金進出' ? '' : c(r[3])) + '">' + sv(r[3]) + '</div></div>';
+    }).join('') + '<div class="drow tot"><div class="di"></div><div class="dl"><div class="t">合計</div></div><div class="dv ' + c(total) + '">' + sv(total) + '</div></div></div>' +
+    '<h2>變動組成</h2><div class="muted" style="margin:-2px 0 8px">各檔當日損益（美股含匯率）' + (missing ? '・部分價格缺漏，只列出有資料的' : '') + '</div>' +
+    (order.length ? order.map(function (o) {
+      var w = Math.abs(o.v) / mx * 50, pos = o.v >= 0;
+      return '<div class="comp"><div><div class="cd">' + esc(o.code) + '</div><div class="cm">' + esc(o.mkt) + '</div>' +
+        (o.us && Math.round(o.fx) ? '<div class="cfx">其中匯率 ' + sv(o.fx) + '</div>' : '') + '</div>' +
+        '<div class="cb"><i style="' + (pos ? 'left:50%' : 'right:50%') + ';width:' + w.toFixed(1) + '%;background:' + (pos ? 'var(--up)' : 'var(--down)') + '"></i></div>' +
+        '<div class="ca ' + c(o.v) + '">' + sv(o.v) + '</div></div>';
+    }).join('') : '<div class="muted">這天沒有各檔價格資料</div>');
+  $('daySheet').style.display = 'flex';
+  $('daySheet').querySelector('.dpanel').scrollTop = 0;
+}
+function closeDay() { $('daySheet').style.display = 'none'; }
 
 /* ---------- 明細 ---------- */
 var TXM = null, VIEW = 'rec', RKIND = 'out', SHEETCAT = null;
@@ -571,6 +647,7 @@ function addEntry() {
 TK = stored('tk');
 if (TK) load(); else showLogin();
 $('pw').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
+$('cal').addEventListener('click', function (e) { var c = e.target.closest('[data-d]'); if (c) openDay(c.getAttribute('data-d')); });
 $('lcal').addEventListener('click', function (e) { var c = e.target.closest('.dc'); if (c) jumpDay(c.getAttribute('data-d')); });
 $('catStat').addEventListener('click', function (e) { var c = e.target.closest('.crow'); if (c) openSheet(c.getAttribute('data-c')); });
 $('fCat').addEventListener('input', syncCat);
