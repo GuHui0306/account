@@ -15,8 +15,12 @@
 <style>
 :root{--bg:#1c1c1e;--card:#2c2c2e;--card2:#252527;--text:#f2f2f7;--muted:#98989f;--up:#ff6b6b;--down:#4cd08a;--line:#3a3a3c;--acc:#5b9bf3}
 *{box-sizing:border-box}
-html{background:var(--bg)}
-body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;padding-top:env(safe-area-inset-top);padding-bottom:calc(70px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+body{margin:0;color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+/* iOS 27：整頁不捲動，只捲內層，狀態列下方用實心底色蓋住，避免頂端模糊 */
+#sbar{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);z-index:8}
+#app{position:fixed;top:env(safe-area-inset-top);left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding-top:6px;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+#login,#loading{position:relative;top:env(safe-area-inset-top)}
 h2{font-size:15px;color:var(--muted);font-weight:500;margin:0 0 6px}
 .big{font-size:34px;font-weight:700;margin:2px 0 6px;letter-spacing:-.5px}
 .card{background:var(--card);border-radius:14px;margin:12px;padding:14px}
@@ -76,7 +80,7 @@ label{font-size:13px;color:var(--muted)}
 .ltot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .ltot .muted{font-size:12px}.ltot .v{font-size:19px;font-weight:700;margin-top:2px;letter-spacing:-.3px}
 .ltot>div:nth-child(2){text-align:center}.ltot>div:last-child{text-align:right}
-.dgrp{background:var(--card);border-radius:14px;margin:10px 12px;padding:4px 14px;scroll-margin-top:calc(12px + env(safe-area-inset-top))}
+.dgrp{background:var(--card);border-radius:14px;margin:10px 12px;padding:4px 14px;scroll-margin-top:10px}
 .dgh{display:flex;justify-content:space-between;font-size:13px;padding:10px 0 8px;border-bottom:1px solid var(--line)}
 .dgh .s{font-weight:600}
 .trow{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -150,6 +154,7 @@ label{font-size:13px;color:var(--muted)}
   <button class="btn" onclick="login()">登入</button>
 </div>
 
+<div id="sbar"></div>
 <div id="loading">讀取中…</div>
 
 <div id="app" style="display:none">
@@ -316,7 +321,7 @@ function go(i) {
   for (var k = 0; k < pages.length; k++) { pages[k].classList.toggle('on', k === i); btns[k].classList.toggle('on', k === i); }
   if (i === 1) { drawChart(); renderCal(); }
   $('vToggle').style.display = i === 2 ? 'flex' : 'none';
-  window.scrollTo(0, 0);
+  $('app').scrollTop = 0;
 }
 
 function renderAll() { renderOverview(); renderStocks(); renderCal(); renderTxOptions(); renderTx(); renderForm(); }
@@ -410,16 +415,8 @@ function renderCal() {
 
 /* ---------- 彈出視窗：鎖住背景捲動、下拉關閉 ---------- */
 var lockY = 0, locks = 0;
-function lockScroll() {
-  if (locks++) return;
-  lockY = window.scrollY;
-  var b = document.body.style; b.position = 'fixed'; b.top = -lockY + 'px'; b.left = '0'; b.right = '0'; b.width = '100%';
-}
-function unlockScroll() {
-  if (--locks > 0) return; locks = 0;
-  var b = document.body.style; b.position = ''; b.top = ''; b.left = ''; b.right = ''; b.width = '';
-  window.scrollTo(0, lockY);
-}
+function lockScroll() { if (locks++) return; $('app').style.overflowY = 'hidden'; }
+function unlockScroll() { if (--locks > 0) return; locks = 0; $('app').style.overflowY = ''; }
 (function () {
   var panel, sy = 0, dy = 0, drag = false, startTop = false;
   document.addEventListener('touchstart', function (e) {
@@ -533,8 +530,8 @@ function renderTxOptions() {
   $('txAcc').value = cur;
   if (!TXM) { var n = new Date(); TXM = new Date(n.getFullYear(), n.getMonth(), 1); }
 }
-function txMove(k) { TXM = new Date(TXM.getFullYear(), TXM.getMonth() + k, 1); renderTx(); if (SHEETCAT) { renderSheet(); $('sheet').scrollTop = 0; } else window.scrollTo(0, 0); }
-function setView(v) { VIEW = v; $('tRec').classList.toggle('on', v === 'rec'); $('tRep').classList.toggle('on', v === 'rep'); renderTx(); window.scrollTo(0, 0); }
+function txMove(k) { TXM = new Date(TXM.getFullYear(), TXM.getMonth() + k, 1); renderTx(); if (SHEETCAT) { renderSheet(); $('sheet').scrollTop = 0; } else $('app').scrollTop = 0; }
+function setView(v) { VIEW = v; $('tRec').classList.toggle('on', v === 'rec'); $('tRep').classList.toggle('on', v === 'rep'); renderTx(); $('app').scrollTop = 0; }
 
 function monthRows(acc) {
   var key = TXM.getFullYear() + '-' + String(TXM.getMonth() + 1).padStart(2, '0');
@@ -577,10 +574,10 @@ function renderTx() {
     var o = daily[t.d] || (daily[t.d] = { i: 0, o: 0 });
     o.i += amt(t.inc); o.o += amt(t.out);
   });
-  var first = new Date(y, m, 1), start = new Date(y, m, 1 - ((first.getDay() + 6) % 7));
-  var last = new Date(y, m + 1, 0), cells = Math.ceil(((first.getDay() + 6) % 7 + last.getDate()) / 7) * 7;
+  var first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay());
+  var last = new Date(y, m + 1, 0), cells = Math.ceil((first.getDay() + last.getDate()) / 7) * 7;
   var today = ymd(new Date());
-  var html = ['一','二','三','四','五','六','日'].map(function (w) { return '<div class="wh">週' + w + '</div>'; }).join('');
+  var html = ['日','一','二','三','四','五','六'].map(function (w) { return '<div class="wh">週' + w + '</div>'; }).join('');
   for (var k = 0; k < cells; k++) {
     var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + k), key = ymd(d), x = daily[key];
     var c = 'dc' + (d.getMonth() !== m ? ' other' : '') + (key === today ? ' today' : '');
