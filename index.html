@@ -414,12 +414,16 @@ function openDay(key) {
   if (i < 1) return;
   var h = hs[i], p = hs[i - 1], cols = D.histCols || [], fx1 = h.fx, fx0 = p.fx;
   var byCode = {}, order = [], priceSum = 0, fxSum = 0, missing = false;
-  D.stocks.forEach(function (s, j) {
-    var col = cols[j] === '價_' + s.code ? j : cols.indexOf('價_' + s.code);
-    var p1 = col >= 0 && h.px ? h.px[col] : null, p0 = col >= 0 && p.px ? p.px[col] : null;
-    if (!num(p1) || !num(p0) || !num(s.qty)) { missing = true; return; }
+  var seen = {};
+  function colOf(name, nth) { var k = -1; for (var c = 0; c < cols.length; c++) if (cols[c] === name && ++k === nth) return c; return -1; }
+  D.stocks.forEach(function (s) {
+    var nth = seen[s.code] = (seen[s.code] === undefined ? 0 : seen[s.code] + 1);
+    var pc = colOf('價_' + s.code, nth), qc = colOf('股數_' + s.code, nth);
+    var p1 = pc >= 0 && h.px ? h.px[pc] : null, p0 = pc >= 0 && p.px ? p.px[pc] : null;
+    var q = qc >= 0 && p.px && num(p.px[qc]) ? p.px[qc] : s.qty;      // 用前一天收盤時的股數
+    if (!num(p1) || !num(p0) || !num(q)) { missing = true; return; }
     var us = s.cur === 'USD', pr, fx = 0;
-    if (us) { pr = s.qty * (p1 - p0) * fx0; fx = s.qty * p1 * (fx1 - fx0); } else pr = s.qty * (p1 - p0);
+    if (us) { pr = q * (p1 - p0) * fx0; fx = q * p1 * (fx1 - fx0); } else pr = q * (p1 - p0);
     var o = byCode[s.code] || (byCode[s.code] = { code: s.code, mkt: s.market || (us ? '美股' : '台股'), us: us, v: 0, fx: 0 });
     if (!o.n) { o.n = 1; order.push(o); }
     o.v += pr + fx; o.fx += fx; priceSum += pr; fxSum += fx;
