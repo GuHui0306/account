@@ -108,7 +108,7 @@ label{font-size:13px;color:var(--muted)}
 .crow .bar2 i{display:block;height:100%;border-radius:3px}
 .crow .cnt{font-size:11px;color:var(--muted);white-space:nowrap}
 .crow .chev{color:var(--muted);font-size:20px;padding-left:2px}
-#sheet{position:fixed;inset:0;background:var(--bg);z-index:20;overflow-y:auto;display:none;padding-top:env(safe-area-inset-top);padding-bottom:calc(20px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+#sheet{position:fixed;inset:0;background:var(--bg);z-index:20;overflow-y:auto;overscroll-behavior:contain;display:none;padding-top:env(safe-area-inset-top);padding-bottom:calc(20px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
 .shead{display:flex;align-items:center;justify-content:space-between;padding:10px 12px}
 .shead button{background:none;border:0;color:var(--text);font-size:22px;padding:4px 10px;font-family:inherit}
 .shead .mnav{font-size:16px}
@@ -117,8 +117,8 @@ label{font-size:13px;color:var(--muted)}
 .stot .v{font-size:17px;font-weight:700}
 
 .cal div[data-d]{cursor:pointer}
-#daySheet{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:30;display:none;align-items:flex-end}
-.dpanel{background:var(--bg);width:100%;max-height:90vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:6px 16px calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;animation:up .22s ease-out}
+#daySheet{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:30;display:none;align-items:flex-end;overscroll-behavior:contain;transition:background .2s}
+.dpanel{background:var(--bg);width:100%;max-height:90vh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;will-change:transform;border-radius:22px 22px 0 0;padding:6px 16px calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;animation:up .22s ease-out}
 @keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
 .grab{width:40px;height:5px;border-radius:3px;background:#48484a;margin:4px auto 6px}
 .dtop{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:14px}
@@ -407,6 +407,49 @@ function renderCal() {
 }
 
 
+
+/* ---------- 彈出視窗：鎖住背景捲動、下拉關閉 ---------- */
+var lockY = 0, locks = 0;
+function lockScroll() {
+  if (locks++) return;
+  lockY = window.scrollY;
+  var b = document.body.style; b.position = 'fixed'; b.top = -lockY + 'px'; b.left = '0'; b.right = '0'; b.width = '100%';
+}
+function unlockScroll() {
+  if (--locks > 0) return; locks = 0;
+  var b = document.body.style; b.position = ''; b.top = ''; b.left = ''; b.right = ''; b.width = '';
+  window.scrollTo(0, lockY);
+}
+(function () {
+  var panel, sy = 0, dy = 0, drag = false, startTop = false;
+  document.addEventListener('touchstart', function (e) {
+    panel = e.target.closest && e.target.closest('.dpanel'); if (!panel) return;
+    sy = e.touches[0].clientY; dy = 0; drag = false;
+    startTop = panel.scrollTop <= 0 || !!e.target.closest('.grab,.dtop');
+    panel.style.transition = '';
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!panel) return;
+    var d = e.touches[0].clientY - sy;
+    if (!drag && startTop && d > 6 && panel.scrollTop <= 0) drag = true;
+    if (drag) {
+      e.preventDefault();
+      dy = Math.max(0, d);
+      panel.style.transform = 'translateY(' + dy + 'px)';
+      $('daySheet').style.background = 'rgba(0,0,0,' + (0.55 * Math.max(0, 1 - dy / 400)).toFixed(3) + ')';
+    }
+  }, { passive: false });
+  document.addEventListener('touchend', function () {
+    if (!panel) return;
+    if (drag) {
+      panel.style.transition = 'transform .22s ease-out';
+      if (dy > 110) { panel.style.transform = 'translateY(100%)'; setTimeout(closeDay, 200); }
+      else { panel.style.transform = ''; $('daySheet').style.background = ''; }
+    }
+    panel = null; drag = false;
+  });
+})();
+
 /* ---------- 當日損益組成 ---------- */
 function openDay(key) {
   var hs = D.hist, i = -1;
@@ -454,10 +497,13 @@ function openDay(key) {
         '<div class="cb"><i style="' + (pos ? 'left:50%' : 'right:50%') + ';width:' + w.toFixed(1) + '%;background:' + (pos ? 'var(--up)' : 'var(--down)') + '"></i></div>' +
         '<div class="ca ' + c(o.v) + '">' + sv(o.v) + '</div></div>';
     }).join('') : '<div class="muted">這天沒有各檔價格資料</div>');
+  var pn = $('daySheet').querySelector('.dpanel');
+  pn.style.transition = ''; pn.style.transform = ''; $('daySheet').style.background = '';
+  if ($('daySheet').style.display !== 'flex') lockScroll();
   $('daySheet').style.display = 'flex';
-  $('daySheet').querySelector('.dpanel').scrollTop = 0;
+  pn.scrollTop = 0;
 }
-function closeDay() { $('daySheet').style.display = 'none'; }
+function closeDay() { if ($('daySheet').style.display === 'flex') { $('daySheet').style.display = 'none'; unlockScroll(); } }
 
 /* ---------- 明細 ---------- */
 var TXM = null, VIEW = 'rec', RKIND = 'out', SHEETCAT = null;
@@ -487,7 +533,7 @@ function renderTxOptions() {
   $('txAcc').value = cur;
   if (!TXM) { var n = new Date(); TXM = new Date(n.getFullYear(), n.getMonth(), 1); }
 }
-function txMove(k) { TXM = new Date(TXM.getFullYear(), TXM.getMonth() + k, 1); renderTx(); if (SHEETCAT) renderSheet(); window.scrollTo(0, 0); }
+function txMove(k) { TXM = new Date(TXM.getFullYear(), TXM.getMonth() + k, 1); renderTx(); if (SHEETCAT) { renderSheet(); $('sheet').scrollTop = 0; } else window.scrollTo(0, 0); }
 function setView(v) { VIEW = v; $('tRec').classList.toggle('on', v === 'rec'); $('tRep').classList.toggle('on', v === 'rep'); renderTx(); window.scrollTo(0, 0); }
 
 function monthRows(acc) {
@@ -598,8 +644,8 @@ function renderReport() {
 }
 
 /* ---------- 類別明細（全螢幕） ---------- */
-function openSheet(cat) { SHEETCAT = cat; $('sheet').style.display = 'block'; $('sheet').scrollTop = 0; renderSheet(); }
-function closeSheet() { SHEETCAT = null; $('sheet').style.display = 'none'; }
+function openSheet(cat) { if ($('sheet').style.display !== 'block') lockScroll(); SHEETCAT = cat; $('sheet').style.display = 'block'; $('sheet').scrollTop = 0; renderSheet(); }
+function closeSheet() { if ($('sheet').style.display === 'block') unlockScroll(); SHEETCAT = null; $('sheet').style.display = 'none'; }
 function renderSheet() {
   var y = TXM.getFullYear(), m = TXM.getMonth(), last = new Date(y, m + 1, 0).getDate(), mm = String(m + 1).padStart(2, '0');
   $('shTitle').textContent = mm + '.1~' + mm + '.' + last;
