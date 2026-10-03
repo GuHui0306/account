@@ -115,7 +115,11 @@ label{font-size:13px;color:var(--muted)}
   <!-- 明細 -->
   <section id="p3" class="page">
     <div class="card">
-      <select id="txAcc" onchange="renderTx()"></select>
+      <div style="display:flex;gap:8px">
+        <select id="txMonth" onchange="renderTx()" style="flex:1"></select>
+        <select id="txAcc" onchange="renderTx()" style="flex:1.4"></select>
+      </div>
+      <div id="txSum" class="grid3" style="margin:4px 0 6px"></div>
       <div id="txList"></div>
     </div>
   </section>
@@ -299,12 +303,27 @@ function renderTxOptions() {
   var cur = $('txAcc').value;
   $('txAcc').innerHTML = '<option value="">全部帳戶</option>' + names.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('');
   $('txAcc').value = cur;
+  var months = [];
+  D.tx.forEach(function (t) { var m = t.d.slice(0, 7); if (/^\d{4}-\d{2}$/.test(m) && months.indexOf(m) < 0) months.push(m); });
+  months.sort().reverse();
+  var curM = $('txMonth').value || months[0] || '';
+  $('txMonth').innerHTML = months.map(function (m) { return '<option value="' + m + '">' + m.slice(0, 4) + ' 年 ' + Number(m.slice(5)) + ' 月</option>'; }).join('') + '<option value="">全部月份</option>';
+  $('txMonth').value = curM;
 }
 function renderTx() {
   var acc = $('txAcc').value;
-  var rows = D.tx.filter(function (t) { return !acc || t.acc === acc; });
+  var mon = $('txMonth').value;
+  var rows = D.tx.filter(function (t) { return (!acc || t.acc === acc) && (!mon || t.d.slice(0, 7) === mon); });
+  var sOut = 0, sIn = 0;
+  rows.forEach(function (t) {
+    if (t.cat === '轉帳' || t.cat === '卡費' || (t.cur && t.cur !== 'TWD')) return;
+    sOut += parseFloat(String(t.out).replace(/,/g, '')) || 0; sIn += parseFloat(String(t.inc).replace(/,/g, '')) || 0;
+  });
+  $('txSum').innerHTML = '<div><div class="muted">支出</div><div class="v down">' + fmt(sOut) + '</div></div>' +
+    '<div><div class="muted">收入</div><div class="v up">' + fmt(sIn) + '</div></div>' +
+    '<div><div class="muted">' + rows.length + ' 筆</div><div class="v ' + cls(sIn - sOut) + '">' + sgn(sIn - sOut) + '</div></div>';
   rows.sort(function (a, b) { var ka = a.d + ' ' + a.t.padStart(5, '0'), kb = b.d + ' ' + b.t.padStart(5, '0'); return ka < kb ? 1 : (ka > kb ? -1 : 0); });
-  rows = rows.slice(0, 150);
+  rows = rows.slice(0, 500);
   $('txList').innerHTML = rows.map(function (t) {
     var out = t.out !== '', amt = out ? '-' + t.out : '+' + t.inc;
     return '<div class="row"><div class="l"><div class="name"><span class="tag">' + esc(t.cat || '未分類') + '</span>' + esc(t.note) + '</div><div class="muted">' + esc(t.d + ' ' + t.t + '・' + t.acc) + '</div></div>' +
