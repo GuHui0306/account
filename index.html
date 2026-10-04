@@ -199,7 +199,7 @@ label{font-size:13px;color:var(--muted)}
     <div class="card">
       <h2>股票總市值</h2>
       <div class="big" id="stTotal">-</div>
-      <div id="stPnl" class="muted"></div>
+      <div id="stPnl"></div>
       <div class="chartbox" style="margin-top:10px"><canvas id="histChart"></canvas></div>
     </div>
     <div class="card">
@@ -365,11 +365,15 @@ function renderOverview() {
 /* ---------- 股票 ---------- */
 function renderStocks() {
   var st = D.stockSum, fx = num(st.fx) ? st.fx : 1;
-  $('stTotal').textContent = '$' + fmt(st.total);
+  var stTot = '$' + fmt(st.total);
   var cost = 0, val = 0;
   D.stocks.forEach(function (x) { if (num(x.twd) && num(x.cost)) { val += x.twd; cost += x.cur === 'USD' ? x.cost * fx : x.cost; } });
   var p = val - cost;
-  $('stPnl').innerHTML = '總損益 <span class="' + cls(p) + '">' + sgn(p) + '（' + pct(cost ? p / cost : null) + '）</span>　美金匯率 ' + fmt(fx, 2);
+  $('stTotal').innerHTML = stTot + ' <span class="' + cls(p) + '" style="font-size:18px;font-weight:600;vertical-align:4px;margin-left:6px">' + pct(cost ? p / cost : null) + '</span>';
+  $('stPnl').innerHTML = '<div class="grid3" style="margin-top:4px">' +
+    '<div><div class="muted">總成本</div><div class="v">' + fmt(cost) + '</div></div>' +
+    '<div><div class="muted">總損益</div><div class="v ' + cls(p) + '">' + sgn(p) + '</div></div>' +
+    '<div><div class="muted">美金匯率</div><div class="v">' + fmt(fx, 2) + '</div></div></div>';
 
   var list = D.stocks.slice().sort(function (a, b) { return (num(b.twd) ? b.twd : 0) - (num(a.twd) ? a.twd : 0); });
   $('stList').innerHTML = list.map(function (x) {
