@@ -19,7 +19,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg)}
 body{margin:0;color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 /* iOS 27：整頁不捲動，只捲內層，狀態列下方用實心底色蓋住，避免頂端模糊 */
 #sbar{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);z-index:8}
-#app{position:fixed;top:env(safe-area-inset-top);left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding-top:6px;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+#app{position:fixed;top:env(safe-area-inset-top);left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding-top:28px;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 #login,#loading{position:relative;top:env(safe-area-inset-top)}
 h2{font-size:15px;color:var(--muted);font-weight:500;margin:0 0 6px}
 .big{font-size:34px;font-weight:700;margin:2px 0 6px;letter-spacing:-.5px}
@@ -63,7 +63,10 @@ label{font-size:13px;color:var(--muted)}
 .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;background:var(--line);color:var(--text);margin-right:6px;vertical-align:1px}
 
 /* ---------- 明細（記錄 / 報表） ---------- */
-.lhead{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:10px 12px 0;gap:6px}
+.lhead{display:flex;justify-content:space-between;align-items:center;padding:0 12px;gap:10px}
+.ympick{display:flex;gap:8px;justify-content:center}
+.ysel{appearance:none;-webkit-appearance:none;width:auto;margin:0;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%276%27%3E%3Cpath d=%27M1 1l4 4 4-4%27 stroke=%27%235b9bf3%27 stroke-width=%271.6%27 fill=%27none%27/%3E%3C/svg%3E") no-repeat right 12px center;border:1px solid var(--line);border-radius:18px;color:var(--text);font-size:16px;font-weight:600;padding:7px 30px 7px 14px;font-family:inherit}
+.card .ympick{margin-bottom:10px}
 .accwrap{position:relative;min-width:0;color:var(--acc);font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:6px 0}
 .accsel{position:absolute;inset:0;opacity:0;width:100%;height:100%;margin:0;padding:0;font-size:16px}
 .mnav{display:flex;align-items:center;gap:4px;font-size:18px;font-weight:600;white-space:nowrap}
@@ -184,11 +187,8 @@ label{font-size:13px;color:var(--muted)}
       <div class="chartbox" style="margin-top:10px"><canvas id="histChart"></canvas></div>
     </div>
     <div class="card">
-      <div class="calhead">
-        <button onclick="moveMonth(-1)">‹</button>
-        <div style="text-align:center"><div id="calTitle" style="font-weight:600">-</div><div id="calSum" class="muted"></div></div>
-        <button onclick="moveMonth(1)">›</button>
-      </div>
+      <div class="ympick"><select id="calY" class="ysel" onchange="pickCal()"></select><select id="calM" class="ysel" onchange="pickCal()"></select></div>
+      <div id="calSum" class="muted" style="text-align:center;margin:-2px 0 10px"></div>
       <div class="cal" id="cal"></div>
       <div class="muted" style="margin-top:10px">點日期看當天損益組成・已扣除資金進出</div>
     </div>
@@ -199,8 +199,7 @@ label{font-size:13px;color:var(--muted)}
   <section id="p3" class="page">
     <div class="lhead">
       <div class="accwrap"><span id="accLbl">全部帳戶</span> ▾<select id="txAcc" class="accsel" onchange="renderTx()"></select></div>
-      <div class="mnav"><button onclick="txMove(-1)">‹</button><span id="txTitle"></span><button onclick="txMove(1)">›</button></div>
-      <div class="lspacer"></div>
+      <div class="ympick"><select id="txY" class="ysel" onchange="pickTx()"></select><select id="txM" class="ysel" onchange="pickTx()"></select></div>
     </div>
     <div id="vRec">
       <div class="card">
@@ -407,7 +406,7 @@ function renderCal() {
     html += '<div class="' + c + '"' + (h && num(h.pnl) ? ' data-d="' + key + '"' : '') + '><b>' + d + '</b>' + body + '</div>';
   }
   $('cal').innerHTML = html;
-  $('calTitle').textContent = y + ' 年 ' + (m + 1) + ' 月';
+  fillYM('calY', 'calM', y, m);
   $('calSum').innerHTML = n ? '當月 <span class="' + cls(sum) + '">' + pct(prod - 1) + '　' + sgn(sum) + '</span>　上漲 ' + upDays + '/' + n + ' 天' : '本月尚無資料';
 }
 
@@ -502,6 +501,25 @@ function openDay(key) {
 }
 function closeDay() { if ($('daySheet').style.display === 'flex') { $('daySheet').style.display = 'none'; unlockScroll(); } }
 
+
+/* ---------- 年 / 月 下拉選單 ---------- */
+function yearRange() {
+  var ys = [new Date().getFullYear()];
+  (D.tx || []).forEach(function (t) { var y = +t.d.slice(0, 4); if (y) ys.push(y); });
+  (D.hist || []).forEach(function (t) { var y = +t.d.slice(0, 4); if (y) ys.push(y); });
+  var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys), out = [];
+  for (var y = hi; y >= lo; y--) out.push(y);
+  return out;
+}
+function fillYM(yid, mid, y, m) {
+  var ys = yearRange(); if (ys.indexOf(y) < 0) ys.push(y);
+  $(yid).innerHTML = ys.map(function (v) { return '<option value="' + v + '">' + v + ' 年</option>'; }).join('');
+  $(mid).innerHTML = [1,2,3,4,5,6,7,8,9,10,11,12].map(function (v) { return '<option value="' + (v - 1) + '">' + v + ' 月</option>'; }).join('');
+  $(yid).value = y; $(mid).value = m;
+}
+function pickTx() { TXM = new Date(+$('txY').value, +$('txM').value, 1); renderTx(); $('app').scrollTop = 0; }
+function pickCal() { calM = new Date(+$('calY').value, +$('calM').value, 1); renderCal(); }
+
 /* ---------- 明細 ---------- */
 var TXM = null, VIEW = 'rec', RKIND = 'out', SHEETCAT = null;
 var CN = ['一','二','三','四','五','六','七','八','九','十','十一','十二'], WK = ['日','一','二','三','四','五','六'];
@@ -561,7 +579,7 @@ function renderTx() {
   if (!TXM) renderTxOptions();
   var acc = $('txAcc').value, y = TXM.getFullYear(), m = TXM.getMonth();
   $('accLbl').textContent = acc || '全部帳戶';
-  $('txTitle').textContent = y + ' ' + CN[m] + '月';
+  fillYM('txY', 'txM', y, m);
   $('vRec').style.display = VIEW === 'rec' ? 'block' : 'none';
   $('vRep').style.display = VIEW === 'rep' ? 'block' : 'none';
   if (VIEW === 'rep') return renderReport();
