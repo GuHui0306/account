@@ -57,6 +57,10 @@ label{font-size:13px;color:var(--muted)}
 #loading{text-align:center;color:var(--muted);padding:60px 0}
 .refresh{float:right;background:none;border:0;color:var(--acc);font-size:13px;font-family:inherit}
 .chartbox{position:relative;height:220px}
+.ysel:disabled{opacity:.35}
+.sw{display:flex;background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:2px;flex:0 0 auto}
+.sw button{background:none;border:0;color:var(--muted);font-size:15px;font-weight:700;width:34px;height:30px;border-radius:13px;font-family:inherit}
+.sw button.on{background:var(--acc);color:#fff}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
 .chips button{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:6px 12px;font-size:14px;font-family:inherit}
 .chips button.on{background:var(--acc);border-color:var(--acc)}
@@ -162,6 +166,18 @@ label{font-size:13px;color:var(--muted)}
 .comp .cb:before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--line)}
 .comp .cb i{position:absolute;top:0;height:12px;border-radius:3px}
 .comp .ca{text-align:right;font-size:15px;font-weight:600}
+.hold{padding:16px 0 14px;border-bottom:1px solid var(--line)}
+.hold:last-child{border-bottom:0;padding-bottom:4px}
+.hh{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.hh .nm{font-size:16px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hh .cd{font-size:12px;color:var(--muted);font-weight:400;margin-left:6px}
+.hh .px{font-size:13px;font-weight:500;margin-left:8px;padding:1px 7px;border-radius:6px;background:var(--card2);font-variant-numeric:tabular-nums}
+.hh .mv{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.hs{display:flex;justify-content:space-between;align-items:center;margin-top:3px;font-size:13px;font-variant-numeric:tabular-nums}
+.hs .tg{font-size:11px;color:var(--muted);background:var(--card2);border-radius:6px;padding:1px 7px}
+.hg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;background:var(--card2);border-radius:10px;padding:8px 10px}
+.hg .k{font-size:11px;color:var(--muted)}
+.hg .v{font-size:13px;margin-top:1px;font-variant-numeric:tabular-nums;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -200,7 +216,9 @@ label{font-size:13px;color:var(--muted)}
       <h2>股票總市值</h2>
       <div class="big" id="stTotal">-</div>
       <div id="stPnl"></div>
-      <div class="chartbox" style="margin-top:10px"><canvas id="histChart"></canvas></div>
+      <div class="ympick" style="margin:14px 0 4px;align-items:center"><select id="chY" class="ysel" onchange="drawChart()"></select><select id="chM" class="ysel" onchange="drawChart()"></select></div>
+      <div class="chartbox" style="margin-top:6px"><canvas id="histChart"></canvas></div>
+      <div id="chEmpty" class="muted" style="text-align:center;display:none;margin-top:-120px;height:120px">這段期間沒有資料</div>
     </div>
     <div class="card">
       <div class="ympick"><select id="calY" class="ysel" onchange="pickCal()"></select><select id="calM" class="ysel" onchange="pickCal()"></select></div>
@@ -208,7 +226,7 @@ label{font-size:13px;color:var(--muted)}
       <div class="cal" id="cal"></div>
       <div class="muted" style="margin-top:10px">點日期看當天損益組成・已扣除資金進出</div>
     </div>
-    <div class="card"><h2>持股</h2><div id="stList"></div></div>
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h2 style="margin:0">持股</h2><select id="stF" class="ysel" onchange="renderStocks()"><option value="">全部</option><option value="台股">台股</option><option value="美股">美股</option></select></div><div id="stSum" class="grid3" style="margin:8px 0 6px;padding-bottom:10px;border-bottom:1px solid var(--line)"></div><div id="stList"></div></div>
   </section>
 
   <!-- 明細 -->
@@ -290,7 +308,7 @@ label{font-size:13px;color:var(--muted)}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-var TK = null, D = null, chart = null, calM = null, kind = '支出';
+var CHMODE = 'v', TK = null, D = null, chart = null, calM = null, kind = '支出';
 var COLORS = ['#5b9bf3', '#4cd08a', '#f0a35e', '#a78bfa', '#ff6b6b', '#f5c542', '#7dd3fc', '#98989f'];
 
 function $(id) { return document.getElementById(id); }
@@ -375,27 +393,54 @@ function renderStocks() {
     '<div><div class="muted">總損益</div><div class="v ' + cls(p) + '">' + sgn(p) + '</div></div>' +
     '<div><div class="muted">美金匯率</div><div class="v">' + fmt(fx, 2) + '</div></div></div>';
 
-  var list = D.stocks.slice().sort(function (a, b) { return (num(b.twd) ? b.twd : 0) - (num(a.twd) ? a.twd : 0); });
-  $('stList').innerHTML = list.map(function (x) {
-    var r = num(x.pct) ? x.pct / 100 : null;
-    return '<div class="row"><div class="l"><div class="name">' + esc(x.name) + ' <span class="muted">' + esc(x.code) + '</span></div>' +
-      '<div class="muted">' + esc(x.broker) + '・' + fmt(x.qty, x.cur === 'USD' ? 4 : 0) + ' 股・現價 ' + (num(x.price) ? fmt(x.price, 2) : esc(x.price)) + '</div></div>' +
-      '<div class="r"><div>' + fmt(x.twd) + '</div><div class="muted ' + cls(r) + '">' + pct(r) + '</div></div></div>';
+  if (!$('chY').options.length) { var nd = new Date(); fillYM('chY', 'chM', nd.getFullYear(), 'y', true); $('chY').insertAdjacentHTML('afterbegin', '<option value="all">全部</option>'); $('chY').value = nd.getFullYear(); }
+  var mk = $('stF').value;
+  var list = D.stocks.filter(function (x) { return !mk || (x.market || (x.cur === 'USD' ? '美股' : '台股')) === mk; }).sort(function (a, b) { return (num(b.twd) ? b.twd : 0) - (num(a.twd) ? a.twd : 0); });
+  var lv = 0, lc = 0;
+  list.forEach(function (x) { if (num(x.twd) && num(x.cost)) { lv += x.twd; lc += x.cur === 'USD' ? x.cost * fx : x.cost; } });
+  var lp = lv - lc;
+  $('stSum').innerHTML = '<div><div class="muted">市值</div><div class="v">' + fmt(lv) + '</div></div>' +
+    '<div><div class="muted">成本</div><div class="v">' + fmt(lc) + '</div></div>' +
+    '<div><div class="muted">未實現損益</div><div class="v ' + cls(lp) + '">' + sgn(lp) + '</div><div class="muted ' + cls(lp) + '">' + pct(lc ? lp / lc : null) + '</div></div>';
+  // 同一代號（例如國泰、富邦的台積電）合併成一列
+  var merged = [], byCode = {};
+  list.forEach(function (x) {
+    var m = byCode[x.code];
+    if (!m) { m = byCode[x.code] = { code: x.code, name: x.name, cur: x.cur, price: x.price, qty: 0, cost: 0, twd: 0 }; merged.push(m); }
+    m.qty += num(x.qty) ? x.qty : 0; m.cost += num(x.cost) ? x.cost : 0; m.twd += num(x.twd) ? x.twd : 0;
+  });
+  merged.sort(function (a, b) { return b.twd - a.twd; });
+  $('stList').innerHTML = merged.map(function (x) {
+    var us = x.cur === 'USD', avg = x.qty ? x.cost / x.qty : null;
+    var r = num(x.price) && x.cost ? (x.qty * x.price - x.cost) / x.cost : null;
+    var pnl = x.twd - (us ? x.cost * fx : x.cost);
+    var cell = function (k, v) { return '<div><div class="k">' + k + '</div><div class="v">' + v + '</div></div>'; };
+    return '<div class="hold">' +
+      '<div class="hh"><div class="nm">' + esc(x.name) + '<span class="cd">' + esc(x.code) + '</span><span class="px">' + (num(x.price) ? fmt(x.price, 2) : esc(x.price)) + '</span></div><div class="mv">' + fmt(x.twd) + '</div></div>' +
+      '<div class="hs"><span class="tg">' + (us ? '美股・USD' : '台股・TWD') + '</span><span class="' + cls(pnl) + '">' + sgn(pnl) + '　' + pct(r) + '</span></div>' +
+      '<div class="hg">' + cell('股數', fmt(x.qty, us ? 4 : 0)) + cell('均價', fmt(avg, 2)) + cell('成本', fmt(x.cost, us ? 2 : 0)) + '</div>' +
+      '</div>';
   }).join('');
 }
 
 function drawChart() {
   if (!window.Chart || !D) return;
-  var pts = D.hist.filter(function (h) { return num(h.v); });
+  var cy = $('chY').value, cm = $('chM').value, all = cy === 'all';
+  $('chM').disabled = all;
+  var key = all ? '' : (cm === 'y' || !cm ? cy : cy + '-' + String(+cm + 1).padStart(2, '0'));
+  var pts = D.hist.filter(function (h) { return num(h.v) && (!key || h.d.slice(0, key.length) === key); });
+  $('chEmpty').style.display = pts.length ? 'none' : 'block';
+  var isP = CHMODE === 'p', base = 1;
+  var ys = pts.map(function (h, i) { if (!isP) return h.v; if (i && num(h.pct)) base *= 1 + h.pct; return +((base - 1) * 100).toFixed(2); });
   var ctx = $('histChart');
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: 'line',
-    data: { labels: pts.map(function (h) { return h.d.slice(5); }), datasets: [{ data: pts.map(function (h) { return h.v; }), borderColor: '#5b9bf3', borderWidth: 2, pointRadius: 0, tension: .25, fill: true, backgroundColor: 'rgba(91,155,243,.12)' }] },
+    data: { labels: pts.map(function (h) { return all ? h.d.slice(2).replace(/-/g, '/') : h.d.slice(5); }), datasets: [{ data: ys, borderColor: '#5b9bf3', borderWidth: 2, pointRadius: 0, tension: .25, fill: true, backgroundColor: 'rgba(91,155,243,.12)' }] },
     options: {
-      maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return '$' + fmt(c.parsed.y); } } } },
+      maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return isP ? (c.parsed.y > 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%' : '$' + fmt(c.parsed.y); } } } },
       interaction: { intersect: false, mode: 'index' },
-      scales: { x: { ticks: { color: '#98989f', maxTicksLimit: 6 }, grid: { display: false } }, y: { ticks: { color: '#98989f', callback: function (v) { return (v / 10000).toFixed(0) + '萬'; } }, grid: { color: '#3a3a3c' } } }
+      scales: { x: { ticks: { color: '#98989f', maxTicksLimit: 6 }, grid: { display: false } }, y: { ticks: { color: '#98989f', callback: function (v) { return isP ? (v > 0 ? '+' : '') + (+v.toFixed(2)) + '%' : (v / 10000).toFixed(v % 10000 ? 1 : 0) + '萬'; } }, grid: { color: '#3a3a3c' } } }
     }
   });
 }
