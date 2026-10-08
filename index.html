@@ -595,13 +595,16 @@ var ICONS = {
   '股票':['📈','#38bdf8'], '股息':['💰','#22c55e'], '薪資':['💼','#10b981'], '利息':['🪙','#eab308'],
   '轉帳':['🔁','#6b7280'], '卡費':['💳','#6b7280'], '代墊':['🤝','#14b8a6'], '父母':['👪','#f472b6'],
   '禮物':['🎁','#e11d48'], '電話':['📱','#0ea5e9'], '現金':['🏧','#84cc16'], '兼職':['🧰','#0d9488'],
-  '信用卡回饋':['🎉','#facc15'], '信用卡刷退':['↩️','#94a3b8'], '中獎':['🎫','#f59e0b'], '退稅':['🧾','#22c55e']
+  '出國':['✈️','#06b6d4'], '信用卡回饋':['🎉','#facc15'], '信用卡刷退':['↩️','#94a3b8'], '中獎':['🎫','#f59e0b'], '退稅':['🧾','#22c55e']
 };
 function icon(cat) { var x = ICONS[cat] || ['🏷️', '#8e8e93']; return '<div class="ic" style="background:' + x[1] + '33">' + x[0] + '</div>'; }
 function ccolor(cat) { return (ICONS[cat] || [0, '#8e8e93'])[1]; }
 function amt(v) { return parseFloat(String(v == null ? '' : v).replace(/,/g, '')) || 0; }
 // 算進收支：轉帳（含換匯）、卡費、股票買賣不算；外幣照原幣別分開算
 function counted(t) { return !(t.cat === '轉帳' || t.cat === '卡費' || t.cat === '股票'); }
+// 這些類別的退款（收入）直接從同類別支出扣掉，不算收入
+var NETCATS = { '出國': 1 };
+function isNet(t) { return NETCATS[t.cat] && amt(t.inc) > 0; }
 function cur(t) { return t.cur === 'USD' || t.cur === 'JPY' ? t.cur : 'TWD'; }
 function curSym(c) { return c === 'USD' ? 'US$' : c === 'JPY' ? '¥' : '$'; }
 function money(n, c) { c = c || 'TWD'; return curSym(c) + fmt(n, c === 'USD' || (n % 1 && c !== 'JPY') ? 2 : 0); }
@@ -610,7 +613,7 @@ function shortC(n, c) { return c === 'TWD' ? short(n) : curSym(c) + (c === 'USD'
 function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function sums(rows) {
   var s = {}; CURS.forEach(function (c) { s[c] = { i: 0, o: 0 }; });
-  rows.forEach(function (t) { if (counted(t)) { var c = cur(t); s[c].i += amt(t.inc); s[c].o += amt(t.out); } });
+  rows.forEach(function (t) { if (counted(t)) { var c = cur(t); if (isNet(t)) s[c].o -= amt(t.inc); else { s[c].i += amt(t.inc); s[c].o += amt(t.out); } } });
   return s;
 }
 
@@ -732,7 +735,9 @@ function catTotals(kind) {
   var acc = $('txAcc').value, by = {}, total = 0;
   periodRows(acc).forEach(function (t) {
     if (!counted(t)) return;
-    var v = amt(kind === 'out' ? t.out : t.inc); if (!v) return;
+    var v = amt(kind === 'out' ? t.out : t.inc);
+    if (isNet(t)) { if (kind !== 'out') return; v = -amt(t.inc); }
+    if (!v) return;
     var k = t.cat || '未分類', c = cur(t);
     var o = by[k] || (by[k] = { v: 0, n: 0, fx: {} });
     o.n++;
@@ -785,8 +790,8 @@ function renderSheet() {
   var y = TXM.getFullYear(), m = TXM.getMonth(), last = new Date(y, m + 1, 0).getDate(), mm = String(m + 1).padStart(2, '0');
   $('shTitle').textContent = TXYEAR ? y + ' 全年' : mm + '.1~' + mm + '.' + last;
   var acc = $('txAcc').value, isOut = RKIND === 'out', tot = {};
-  var rows = periodRows(acc).filter(function (t) { return counted(t) && (t.cat || '未分類') === SHEETCAT && amt(isOut ? t.out : t.inc) > 0; });
-  rows.forEach(function (t) { var c = cur(t); tot[c] = (tot[c] || 0) + amt(isOut ? t.out : t.inc); });
+  var rows = periodRows(acc).filter(function (t) { return counted(t) && (t.cat || '未分類') === SHEETCAT && (isNet(t) ? isOut : amt(isOut ? t.out : t.inc) > 0); });
+  rows.forEach(function (t) { var c = cur(t); tot[c] = (tot[c] || 0) + (isNet(t) ? -amt(t.inc) : amt(isOut ? t.out : t.inc)); });
   var totTxt = CURS.filter(function (c) { return tot[c]; }).map(function (c) { return money(tot[c], c); }).join('　') || '$0';
   $('shTot').innerHTML = '<div class="t">' + icon(SHEETCAT) + esc(SHEETCAT) + ' 總計</div><div class="v"><span class="' + (isOut ? 'ro' : 'gi') + '">' + (isOut ? '支' : '收') + '</span> ' + totTxt + '</div>';
   $('shList').innerHTML = dayGroups(rows, '') || '<div class="card muted" style="text-align:center">沒有紀錄</div>';
