@@ -178,6 +178,19 @@ label{font-size:13px;color:var(--muted)}
 .hg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;background:var(--card2);border-radius:10px;padding:8px 10px}
 .hg .k{font-size:11px;color:var(--muted)}
 .hg .v{font-size:13px;margin-top:1px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ---------- 淨資產趨勢 ---------- */
+.nethead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#spark{cursor:pointer;flex:0 0 auto;padding:2px 0 0 4px}
+#trend{position:fixed;inset:0;background:var(--bg);z-index:22;overflow-y:auto;overscroll-behavior:contain;display:none;padding-top:env(safe-area-inset-top);padding-bottom:calc(20px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+#trend .shead b{font-size:17px}
+.trnav{display:flex;align-items:center;justify-content:center;gap:4px;margin:2px 0 10px}
+.trnav>button{background:none;border:0;color:var(--acc);font-size:24px;padding:2px 12px;font-family:inherit}
+.trrow{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}
+.trrow:last-child{border-bottom:0}
+.trrow .tt{font-size:16px;font-weight:600}
+.trrow .tv{text-align:right;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.trrow .tc{font-size:13px;font-weight:500;margin-top:2px}
 </style>
 </head>
 <body>
@@ -198,7 +211,7 @@ label{font-size:13px;color:var(--muted)}
     <div class="card">
       <button class="refresh" onclick="load()">重新整理</button>
       <h2>淨資產（含股票）</h2>
-      <div class="big" id="netTotal">-</div>
+      <div class="nethead"><div class="big" id="netTotal">-</div><div id="spark" onclick="openTrend()"></div></div>
       <div class="grid3">
         <div><div class="muted">存款</div><div class="v" id="sDep">-</div></div>
         <div><div class="muted">股票</div><div class="v" id="sStock">-</div></div>
@@ -296,6 +309,17 @@ label{font-size:13px;color:var(--muted)}
   <div id="shList"></div>
 </div>
 
+
+<div id="trend">
+  <div class="shead"><button onclick="closeTrend()">✕</button><b>趨勢</b><button style="visibility:hidden">✕</button></div>
+  <div class="trnav"><button onclick="trMove(-1)">‹</button><div class="ympick"><select id="trY" class="ysel" onchange="pickTrend()"></select><select id="trM" class="ysel" onchange="pickTrend()"></select></div><button onclick="trMove(1)">›</button></div>
+  <div class="card">
+    <div class="accwrap" style="display:inline-block;margin-bottom:6px"><span id="trLbl">淨資產</span> ▾<select id="trMetric" class="accsel" onchange="pickTrend()"><option value="net">淨資產</option><option value="asset">總資產</option><option value="debt">總負債</option></select></div>
+    <div class="chartbox"><canvas id="trChart"></canvas></div>
+  </div>
+  <div class="card" style="padding-top:4px;padding-bottom:4px"><div id="trList"></div></div>
+</div>
+
 <div id="daySheet" onclick="if(event.target===this)closeDay()">
   <div class="dpanel">
     <div class="grab"></div>
@@ -357,7 +381,7 @@ function go(i) {
   $('app').scrollTop = 0;
 }
 
-function renderAll() { renderOverview(); renderStocks(); renderCal(); renderTxOptions(); renderTx(); renderForm(); }
+function renderAll() { BALIX = null; renderOverview(); try { renderSpark(); } catch (e) {} renderStocks(); renderCal(); renderTxOptions(); renderTx(); renderForm(); }
 
 /* ---------- 總覽 ---------- */
 function renderOverview() {
@@ -832,6 +856,135 @@ function addEntry() {
     return load();
   }).catch(function (e) { toast(e && e.message ? e.message : '記錄失敗'); })
     .then(function () { $('fBtn').disabled = false; });
+}
+
+
+/* ---------- 淨資產趨勢 ---------- */
+var TR = { metric: 'net', y: null, m: 'y', chart: null }, BALIX = null;
+var TRNAME = { net: '淨資產', asset: '總資產', debt: '總負債' };
+function isCard(n) { return /卡/.test(n); }
+function buildBalIndex() {
+  var by = {}, order = [];
+  D.tx.forEach(function (t) { if (!t.acc) return; if (!by[t.acc]) { by[t.acc] = []; order.push(t.acc); } by[t.acc].push(t); });   // 試算表是新→舊
+  var rate = {};
+  D.accounts.forEach(function (a) { if (a.cur && a.cur !== 'TWD' && num(a.bal) && a.bal && num(a.twd)) rate[a.cur] = a.twd / a.bal; });
+  var accs = order.map(function (n) {
+    var rows = by[n], last = rows[rows.length - 1], seen = {}, pts = [];
+    rows.forEach(function (t) { if (!seen[t.d]) { seen[t.d] = 1; pts.push([t.d, amt(t.bal)]); } });   // 每天取最後一筆（新→舊的第一筆）
+    pts.reverse();
+    return { name: n, card: isCard(n), cur: cur(last), open: amt(last.bal) - amt(last.inc) + amt(last.out), pts: pts };
+  });
+  var hs = (D.hist || []).filter(function (h) { return num(h.v); });
+  var starts = accs.map(function (a) { return a.pts.length ? a.pts[0][0] : '9999'; });
+  if (hs.length) starts.push(hs[0].d);
+  BALIX = { accs: accs, hist: hs, rate: rate, start: starts.reduce(function (m, s) { return s < m ? s : m; }, '9999') };
+  if (hs.length && hs[0].d > BALIX.start) BALIX.start = hs[0].d;   // 股票歷史開始後才算得出含股票的淨資產
+}
+function lastAt(pts, d, k) {   // pts 依日期舊→新：取 d（含）以前最後一筆
+  var lo = 0, hi = pts.length - 1, r = -1;
+  while (lo <= hi) { var mid = (lo + hi) >> 1, x = k ? pts[mid][k] : pts[mid][0]; if (x <= d) { r = mid; lo = mid + 1; } else hi = mid - 1; }
+  return r;
+}
+function worthAt(d) {
+  var X = BALIX, hi = lastAt(X.hist, d, 'd'), h = hi >= 0 ? X.hist[hi] : null;
+  var fx = { TWD: 1, USD: h && num(h.fx) ? h.fx : (num(D.stockSum.fx) ? D.stockSum.fx : 30), JPY: X.rate.JPY || 0.21 };
+  var dep = 0, card = 0;
+  X.accs.forEach(function (a) {
+    var i = lastAt(a.pts, d), b = i >= 0 ? a.pts[i][1] : a.open, v = b * (fx[a.cur] || 1);
+    if (a.card) card += v; else dep += v;
+  });
+  var stock = h ? h.v : 0;
+  if (d >= ymd(new Date())) {   // 今天：跟總覽同一組即時數字
+    var S = D.summary, st = D.stockSum;
+    if (num(S.deposit)) dep = S.deposit; if (num(S.debt)) card = S.debt; if (num(st.total)) stock = st.total;
+  }
+  return { net: Math.round(dep + card + stock), asset: Math.round(dep + stock + Math.max(0, card)), debt: Math.round(Math.max(0, -card)), dep: Math.round(dep), card: Math.round(card), stock: stock };
+}
+function trendPoints() {
+  var today = ymd(new Date()), S = BALIX.start, pts = [];
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  function monthPt(y, m, lbl) {
+    var a = y + '-' + pad(m + 1) + '-01', e = ymd(new Date(y, m + 1, 0));
+    var d = e > today ? today : e;
+    pts.push({ lbl: lbl, title: y + '年' + (m + 1) + '月', d: (a > today || e < S) ? null : d });
+  }
+  if (TR.y === 'all') {
+    var s = new Date(S + 'T00:00:00'), n = new Date();
+    var y = s.getFullYear(), m = s.getMonth();
+    while (y * 12 + m <= n.getFullYear() * 12 + n.getMonth()) { monthPt(y, m, String(y).slice(2) + '/' + pad(m + 1)); if (++m > 11) { m = 0; y++; } }
+  } else if (TR.m === 'y') {
+    for (var k = 0; k < 12; k++) monthPt(TR.y, k, pad(k + 1));
+  } else {
+    var last = new Date(TR.y, +TR.m + 1, 0).getDate();
+    for (var dd = 1; dd <= last; dd++) {
+      var key = TR.y + '-' + pad(+TR.m + 1) + '-' + pad(dd);
+      pts.push({ lbl: pad(dd), title: (+TR.m + 1) + '月' + dd + '日（' + WK[new Date(key + 'T00:00:00').getDay()] + '）', d: (key > today || key < S) ? null : key });
+    }
+  }
+  // 前一期（算第一點的變動）
+  var first = pts.filter(function (p) { return p.d; })[0], prev = null;
+  if (first) {
+    var fd = new Date(first.d + 'T00:00:00'), pd = TR.m !== 'y' && TR.y !== 'all' ? new Date(fd.getFullYear(), fd.getMonth(), fd.getDate() - 1) : new Date(fd.getFullYear(), fd.getMonth(), 0);
+    var pk = ymd(pd); if (pk >= S) prev = worthAt(pk)[TR.metric];
+  }
+  pts.forEach(function (p) { if (p.d) p.v = worthAt(p.d)[TR.metric]; });
+  return { pts: pts, prev: prev };
+}
+function fillTrendSel() {
+  var ys = yearRange().filter(function (y) { return String(y) >= BALIX.start.slice(0, 4); });
+  $('trY').innerHTML = '<option value="all">全部</option>' + ys.map(function (v) { return '<option value="' + v + '">' + v + ' 年</option>'; }).join('');
+  $('trM').innerHTML = '<option value="y">全年</option>' + [1,2,3,4,5,6,7,8,9,10,11,12].map(function (v) { return '<option value="' + (v - 1) + '">' + v + ' 月</option>'; }).join('');
+  $('trY').value = TR.y; $('trM').value = TR.m; $('trM').disabled = TR.y === 'all';
+  $('trMetric').value = TR.metric; $('trLbl').textContent = TRNAME[TR.metric];
+}
+function openTrend() {
+  if (!BALIX) buildBalIndex();
+  if (TR.y === null) TR.y = new Date().getFullYear();
+  if ($('trend').style.display !== 'block') lockScroll();
+  $('trend').style.display = 'block'; $('trend').scrollTop = 0;
+  renderTrend();
+}
+function closeTrend() { if ($('trend').style.display === 'block') unlockScroll(); $('trend').style.display = 'none'; }
+function pickTrend() { TR.y = $('trY').value === 'all' ? 'all' : +$('trY').value; TR.m = TR.y === 'all' ? 'y' : $('trM').value; TR.metric = $('trMetric').value; renderTrend(); }
+function trMove(k) {
+  if (TR.y === 'all') return;
+  if (TR.m === 'y') TR.y += k;
+  else { var d = new Date(TR.y, +TR.m + k, 1); TR.y = d.getFullYear(); TR.m = String(d.getMonth()); }
+  var minY = +BALIX.start.slice(0, 4), maxY = new Date().getFullYear();
+  if (TR.y < minY || TR.y > maxY) { TR.y = Math.min(maxY, Math.max(minY, TR.y)); return; }
+  renderTrend();
+}
+function shortM(v) { var a = Math.abs(v); return (v < 0 ? '-' : '') + (a >= 1e6 ? (a / 1e6).toFixed(a % 1e6 ? 1 : 0).replace(/\.0$/, '') + 'm' : a >= 1e3 ? Math.round(a / 1e3) + 'k' : a); }
+function renderTrend() {
+  fillTrendSel();
+  var r = trendPoints(), pts = r.pts, col = '#f5c542';
+  if (window.Chart) {
+    if (TR.chart) TR.chart.destroy();
+    TR.chart = new Chart($('trChart'), {
+      type: 'line',
+      data: { labels: pts.map(function (p) { return p.lbl; }), datasets: [{ data: pts.map(function (p) { return p.d ? p.v : null; }), borderColor: col, borderWidth: 2.5, pointRadius: TR.m === 'y' ? 2.5 : 0, pointBackgroundColor: col, tension: 0, spanGaps: false, fill: true,
+        backgroundColor: function (c) { var a = c.chart.chartArea; if (!a) return 'rgba(245,197,66,.2)'; var g = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom); g.addColorStop(0, 'rgba(245,197,66,.38)'); g.addColorStop(1, 'rgba(245,197,66,0)'); return g; } }] },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: function (c) { return pts[c[0].dataIndex].title; }, label: function (c) { return '$' + fmt(c.parsed.y); } } } },
+        interaction: { intersect: false, mode: 'index' },
+        scales: { x: { ticks: { color: '#98989f', maxTicksLimit: 7, autoSkip: true }, grid: { display: false } },
+                  y: { beginAtZero: true, ticks: { color: '#98989f', maxTicksLimit: 4, callback: function (v) { return shortM(v); } }, grid: { color: 'rgba(245,197,66,.18)', borderDash: [4, 4] }, border: { display: false } } } }
+    });
+  }
+  var prev = r.prev, rows = [];
+  pts.forEach(function (p) { if (!p.d) return; var ch = prev === null ? null : p.v - prev; rows.push({ t: p.title, v: p.v, ch: ch }); prev = p.v; });
+  $('trList').innerHTML = rows.reverse().map(function (x) {
+    return '<div class="trrow"><div class="tt">' + esc(x.t) + '</div><div class="tv"><div>$' + fmt(x.v) + '</div>' + (x.ch === null ? '' : '<div class="tc ' + cls(x.ch) + '">' + (x.ch > 0 ? '+' : x.ch < 0 ? '-' : '') + '$' + fmt(Math.abs(x.ch)) + '</div>') + '</div></div>';
+  }).join('') || '<div class="muted" style="text-align:center;padding:16px 0">這段期間沒有資料</div>';
+}
+function renderSpark() {
+  buildBalIndex();
+  var today = new Date(), vals = [];
+  for (var i = 89; i >= 0; i -= 3) { var k = ymd(new Date(today.getFullYear(), today.getMonth(), today.getDate() - i)); if (k >= BALIX.start) vals.push(worthAt(k).net); }
+  if (vals.length < 2) { $('spark').innerHTML = ''; return; }
+  var W = 96, H = 36, mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), rg = mx - mn || 1;
+  var p = vals.map(function (v, i) { return (i * W / (vals.length - 1)).toFixed(1) + ',' + (3 + (H - 6) * (1 - (v - mn) / rg)).toFixed(1); });
+  var up = vals[vals.length - 1] >= vals[0], c = up ? 'var(--up)' : 'var(--down)';
+  $('spark').innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><polyline points="0,' + H + ' ' + p.join(' ') + ' ' + W + ',' + H + '" fill="' + (up ? 'rgba(255,107,107,.12)' : 'rgba(76,208,138,.12)') + '" stroke="none"/><polyline points="' + p.join(' ') + '" fill="none" stroke="' + c + '" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg><div class="muted" style="font-size:10px;text-align:right">近 90 天 ›</div>';
 }
 
 /* ---------- 啟動 ---------- */
