@@ -284,6 +284,18 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
 .dpanel{background:var(--bg)}
 .grab{background:#d8cfc2}
 .dtop button{background:var(--card2);color:var(--text)}
+/* 編輯分類／備註 */
+.trow{cursor:pointer}.trow:active{opacity:.6}
+#editSheet{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40;display:none;align-items:flex-end}
+.epanel{background:var(--bg);width:100%;max-height:90vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:6px 16px calc(24px + env(safe-area-inset-bottom));animation:up .22s ease-out}
+.ehead{display:flex;align-items:center;gap:12px;padding:6px 0 14px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.ehead .amt{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.ehead .meta{font-size:13px;color:var(--muted);margin-top:2px}
+.ebtns{display:flex;gap:10px;margin-top:6px}
+.ebtns button{flex:1;border:0;border-radius:10px;padding:14px;font-size:16px;font-family:inherit}
+.ebtns .cancel{background:var(--card2);color:var(--text)}
+.ebtns .save{background:var(--acc);color:#fff}
+.ebtns button:disabled{opacity:.5}
 .dbox{background:var(--card)}
 .lhead{padding-top:10px}
 #login{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:22vh 20px 0!important;text-align:center}
@@ -424,6 +436,21 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
   </div>
 </div>
 
+<div id="editSheet" onclick="if(event.target===this)closeEdit()">
+  <div class="epanel">
+    <div class="grab"></div>
+    <div class="ehead" id="eHead"></div>
+    <label>分類</label>
+    <div class="chips" id="eChips"></div>
+    <input id="eCat" list="eCatList" placeholder="分類" oninput="syncECat()">
+    <datalist id="eCatList"></datalist>
+    <label>備註</label>
+    <input id="eNote" list="eNoteList" placeholder="備註（可留空）">
+    <datalist id="eNoteList"></datalist>
+    <div class="ebtns"><button class="cancel" onclick="closeEdit()">取消</button><button class="save" id="eSave" onclick="saveEdit()">儲存</button></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -460,6 +487,7 @@ function load() {
   $('loading').style.display = 'block'; $('loading').textContent = '讀取中…'; $('loading').onclick = null; $('login').style.display = 'none';
   return api({ action: 'data', token: TK }).then(function (o) {
     D = o;
+    (D.tx || []).forEach(function (t, i) { t._i = i; });
     $('loading').style.display = 'none'; $('app').style.display = 'block'; $('nav').style.display = 'flex';
     renderAll();
   }).catch(function (e) {
@@ -776,7 +804,7 @@ function dayGroups(rows, idPrefix) {
       groups[d].map(function (t) {
         var isOut = t.out !== '' && t.out != null, v = amt(isOut ? t.out : t.inc), c = counted(t);
         var a = (isOut ? '-' : '+') + money(v, cur(t));
-        return '<div class="trow">' + icon(t.cat) + '<div class="l"><div class="c">' + esc(t.cat || '未分類') + '</div><div class="n">' + esc(t.note || '') + '</div></div>' +
+        return '<div class="trow" onclick="editTx(' + t._i + ')">' + icon(t.cat) + '<div class="l"><div class="c">' + esc(t.cat || '未分類') + '</div><div class="n">' + esc(t.note || '') + '</div></div>' +
           '<div class="r"><div class="a ' + (!c ? 'x' : isOut ? 'ro' : 'gi') + '">' + a + '</div><div class="m">' + esc(t.acc) + '・' + esc(t.t) + '</div></div></div>';
       }).join('') + '</div>';
   }).join('');
@@ -957,6 +985,51 @@ function addEntry() {
 
 
 /* ---------- 淨資產趨勢 ---------- */
+/* ---------- 編輯分類／備註 ---------- */
+var ETX = null;
+function editTx(i) {
+  var t = D.tx[i]; if (!t) return;
+  if (!t.r || !t.s) { toast('請先在 Apps Script 部署新版本，才能編輯'); return; }
+  ETX = t;
+  var isOut = t.out !== '' && t.out != null, v = amt(isOut ? t.out : t.inc);
+  $('eHead').innerHTML = icon(t.cat) + '<div><div class="amt ' + (isOut ? 'ro' : 'gi') + '">' + (isOut ? '-' : '+') + money(v, cur(t)) + '</div>' +
+    '<div class="meta">' + esc(t.d) + ' ' + esc(t.t) + '・' + esc(t.acc) + '</div></div>';
+  var cnt = {};
+  D.tx.forEach(function (x) { if (x.cat) cnt[x.cat] = (cnt[x.cat] || 0) + 1; });
+  var cats = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; });
+  $('eCatList').innerHTML = cats.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('');
+  $('eChips').innerHTML = cats.filter(function (c) { return c !== '未分類'; }).slice(0, 12).map(function (c) { return '<button type="button" data-c="' + esc(c) + '">' + esc(c) + '</button>'; }).join('');
+  $('eCat').value = t.cat || ''; $('eNote').value = t.note || '';
+  syncECat();
+  $('eSave').disabled = false;
+  $('editSheet').style.display = 'flex'; lockScroll();
+}
+function closeEdit() { if ($('editSheet').style.display === 'flex') unlockScroll(); $('editSheet').style.display = 'none'; ETX = null; }
+function syncECat() {
+  var c = $('eCat').value.trim(), btns = $('eChips').querySelectorAll('button'), notes = {};
+  for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-c') === c);
+  D.tx.forEach(function (x) { if (x.cat === c && x.note) notes[x.note] = 1; });
+  $('eNoteList').innerHTML = Object.keys(notes).slice(0, 60).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
+}
+function saveEdit() {
+  var t = ETX; if (!t) return;
+  var cat = $('eCat').value.trim(), note = $('eNote').value.trim();
+  if (!cat) { toast('請填分類'); return; }
+  if (cat === (t.cat || '') && note === (t.note || '')) { closeEdit(); return; }
+  $('eSave').disabled = true;
+  var data = [{ row: t.r, date: t.d, acc: t.acc, amt: t.v, set: { cat: cat, note: note } }];
+  api({ action: 'patch', token: TK, sheet: t.s, data: JSON.stringify(data) }, true).then(function () {
+    D.tx.forEach(function (x) { if (x.s === t.s && x.r === t.r) { x.cat = cat; x.note = note; } });
+    closeEdit(); toast('已更新');
+    renderTx(); if (SHEETCAT) renderSheet(); renderForm();
+  }).catch(function (e) {
+    $('eSave').disabled = false;
+    var m = e && e.message || '更新失敗';
+    if (/核對失敗/.test(m)) { closeEdit(); toast('這筆在試算表的位置變了，已重新整理，請再點一次'); load(); }
+    else toast(m);
+  });
+}
+
 var TR = { metric: 'net', y: null, m: 'y', chart: null }, BALIX = null;
 var TRNAME = { net: '淨資產', asset: '總資產', debt: '總負債' };
 function isCard(n) { return /卡/.test(n); }
@@ -1110,6 +1183,7 @@ $('cal').addEventListener('click', function (e) { var c = e.target.closest('[dat
 $('lcal').addEventListener('click', function (e) { var c = e.target.closest('.dc'); if (c) return jumpDay(c.getAttribute('data-d')); var mc = e.target.closest('.mc'); if (mc) jumpMonth(+mc.getAttribute('data-m')); });
 $('catStat').addEventListener('click', function (e) { var c = e.target.closest('.crow'); if (c) openSheet(c.getAttribute('data-c')); });
 $('fCat').addEventListener('input', syncCat);
+$('eChips').addEventListener('click', function (e) { var c = e.target.getAttribute('data-c'); if (c) { $('eCat').value = c; syncECat(); } });
 $('catChips').addEventListener('click', function (e) { var c = e.target.getAttribute('data-c'); if (c) { $('fCat').value = c; syncCat(); } });
 </script>
 </body>
