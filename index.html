@@ -296,6 +296,27 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
 .ebtns .cancel{background:var(--card2);color:var(--text)}
 .ebtns .save{background:var(--acc);color:#fff}
 .ebtns button:disabled{opacity:.5}
+.e2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.e2 input,.e2 select{margin:6px 0 10px}
+.etog{display:flex;align-items:center;justify-content:space-between;padding:10px 0 12px;font-size:15px}
+.etog input{width:22px;height:22px;margin:0;accent-color:var(--acc)}
+.evoid{width:100%;background:none;border:1px solid #d9b7b3;color:#b0534b;border-radius:10px;padding:12px;font-size:15px;margin-top:10px;font-family:inherit}
+.evoid.arm{background:#b0534b;color:#fff;border-color:#b0534b}
+.tag2{display:inline-block;font-size:10px;padding:0 5px;border-radius:5px;background:var(--line);color:var(--muted);margin-left:5px;vertical-align:2px;font-weight:500}
+.ovl{position:fixed;inset:0;background:var(--bg);z-index:23;overflow-y:auto;overscroll-behavior:contain;display:none;padding-top:env(safe-area-inset-top);padding-bottom:calc(20px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+.ovl .shead b{font-size:17px}
+.sbox{flex:1;margin:0 6px!important;padding:10px 12px!important;font-size:16px}
+.ibn{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:14px;margin:12px;padding:12px 14px;cursor:pointer}
+.ibn b{font-size:15px}.ibn .cnt{background:#c0564e;color:#fff;border-radius:11px;min-width:22px;height:22px;padding:0 7px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.fx-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.fx-row:last-child{border-bottom:0}
+.fx-row .l{flex:1;min-width:0}.fx-row .n{font-size:15px}.fx-row .m{font-size:12px;color:var(--muted)}
+.fx-row .r{text-align:right;font-variant-numeric:tabular-nums}
+.st-ok{color:#5f8a5f;font-size:12px}.st-wait{color:var(--muted);font-size:12px}.st-late{color:#b0534b;font-size:12px}
+.cc-row{padding:10px 0;border-bottom:1px solid var(--line)}.cc-row:last-child{border-bottom:0}
+.cc-top{display:flex;justify-content:space-between;align-items:baseline}.cc-top b{font-size:15px}
+.cc-sub{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+#ptr{position:fixed;top:calc(env(safe-area-inset-top) + 6px);left:50%;transform:translate(-50%,-60px);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 14px;font-size:13px;color:var(--muted);z-index:9;transition:transform .15s}
 .dbox{background:var(--card)}
 .lhead{padding-top:10px}
 #login{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:22vh 20px 0!important;text-align:center}
@@ -327,6 +348,9 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
       <div class="bar" id="allocBar"></div>
       <div class="legend" id="allocLegend"></div>
     </div>
+    <div id="ovInbox"></div>
+    <div class="card" id="ovFixed" style="display:none"></div>
+    <div class="card" id="ovCards" style="display:none"></div>
     <div class="acchd"><b>帳戶</b><span class="muted" id="accCnt"></span></div>
     <div id="accList"></div>
   </section>
@@ -354,7 +378,7 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
   <section id="p3" class="page">
     <div class="lhead">
       <div class="accwrap"><span id="accLbl">全部帳戶</span> ▾<select id="txAcc" class="accsel" onchange="renderTx()"></select></div>
-      <div class="ympick"><select id="txY" class="ysel" onchange="pickTx()"></select><select id="txM" class="ysel" onchange="pickTx()"></select></div>
+      <div class="ympick"><select id="txY" class="ysel" onchange="pickTx()"></select><select id="txM" class="ysel" onchange="pickTx()"></select><button class="ib" onclick="openSearch()" aria-label="搜尋"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button></div>
     </div>
     <div id="vRec">
       <div class="card">
@@ -436,10 +460,25 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
   </div>
 </div>
 
+<div id="inbox" class="ovl">
+  <div class="shead"><button onclick="closeOvl('inbox')">✕</button><b>待確認</b><button style="visibility:hidden">✕</button></div>
+  <div class="muted" style="padding:0 16px 4px">未分類、或推播自動記的。點一筆確認分類，存檔後就會離開這裡。</div>
+  <div style="padding:6px 12px 0"><button class="btn" id="ibAll" onclick="confirmAll()">已有分類的推播全部確認</button></div>
+  <div id="ibList"></div>
+</div>
+<div id="search" class="ovl">
+  <div class="shead"><button onclick="closeOvl('search')">✕</button><input id="q" class="sbox" type="search" placeholder="店名、備註、分類或金額" oninput="renderSearch()"><span style="width:8px"></span></div>
+  <div id="sCount" class="muted" style="padding:0 16px 4px"></div>
+  <div id="sList"></div>
+</div>
+<div id="ptr">下拉重新整理</div>
+
 <div id="editSheet" onclick="if(event.target===this)closeEdit()">
   <div class="epanel">
     <div class="grab"></div>
     <div class="ehead" id="eHead"></div>
+    <div class="e2"><div><label>金額</label><input id="eAmt" type="number" inputmode="decimal" step="any"></div><div><label>帳戶</label><select id="eAcc"></select></div></div>
+    <div class="e2"><div><label>日期</label><input id="eDate" type="date"></div><div><label>時間</label><input id="eTime" type="time"></div></div>
     <label>分類</label>
     <div class="chips" id="eChips"></div>
     <input id="eCat" list="eCatList" placeholder="分類" oninput="syncECat()">
@@ -447,7 +486,9 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
     <label>備註</label>
     <input id="eNote" list="eNoteList" placeholder="備註（可留空）">
     <datalist id="eNoteList"></datalist>
+    <label class="etog"><span>不記入收支<span class="muted" style="display:block;font-size:12px">結餘照算，報表和收支統計不算這筆</span></span><input type="checkbox" id="eNoCnt"></label>
     <div class="ebtns"><button class="cancel" onclick="closeEdit()">取消</button><button class="save" id="eSave" onclick="saveEdit()">儲存</button></div>
+    <button class="evoid" id="eVoid" onclick="voidTx()">作廢這筆（記錯或重複）</button>
   </div>
 </div>
 
@@ -483,18 +524,30 @@ function api(params, post) {
 function showLogin() { $('loading').style.display = 'none'; $('app').style.display = 'none'; $('nav').style.display = 'none'; $('login').style.display = 'block'; }
 function login() { TK = $('pw').value.trim(); if (!TK) return; store('tk', TK); load(); }
 
+function indexTx() { (D.tx || []).forEach(function (t, i) { t._i = i; }); }
+function showApp() { $('loading').style.display = 'none'; $('login').style.display = 'none'; $('app').style.display = 'block'; $('nav').style.display = 'flex'; }
+function setSync(t) { var e = $('syncTxt'); if (e) e.textContent = '含股票' + (t ? '・' + t : ''); }
+var LOADING = false;
 function load() {
-  $('loading').style.display = 'block'; $('loading').textContent = '讀取中…'; $('loading').onclick = null; $('login').style.display = 'none';
-  return api({ action: 'data', token: TK }).then(function (o) {
-    D = o;
-    (D.tx || []).forEach(function (t, i) { t._i = i; });
-    $('loading').style.display = 'none'; $('app').style.display = 'block'; $('nav').style.display = 'flex';
-    renderAll();
+  if (!D) {   // 先用上次存在手機裡的資料秒開，背景再更新
+    var c = stored('cacheD');
+    if (c) { try { D = JSON.parse(c); indexTx(); showApp(); renderAll(); setSync('更新中…'); } catch (e) { D = null; } }
+  }
+  if (!D) { $('loading').style.display = 'block'; $('loading').textContent = '讀取中…'; $('loading').onclick = null; $('login').style.display = 'none'; }
+  else setSync('更新中…');
+  if (LOADING) return LOADING;
+  LOADING = api({ action: 'data', token: TK }).then(function (o) {
+    D = o; indexTx();
+    try { store('cacheD', JSON.stringify(o)); } catch (e) {}
+    showApp(); renderAll();
+    var n = new Date(); setSync('已更新 ' + n.getHours() + ':' + String(n.getMinutes()).padStart(2, '0'));
   }).catch(function (e) {
-    if (/token|密碼/.test(e && e.message || '')) { store('tk', null); showLogin(); }
-    else { $('loading').textContent = '讀取失敗，點這裡重試'; $('loading').onclick = load; }
+    if (/token|密碼/.test(e && e.message || '')) { store('tk', null); store('cacheD', null); D = null; showLogin(); }
+    else if (!D) { $('loading').textContent = '讀取失敗，點這裡重試'; $('loading').onclick = load; }
+    else setSync('離線，顯示上次的資料');
     toast(e && e.message ? e.message : '讀取失敗');
-  });
+  }).then(function () { LOADING = false; });
+  return LOADING;
 }
 
 function go(i) {
@@ -505,7 +558,7 @@ function go(i) {
   $('app').scrollTop = 0;
 }
 
-function renderAll() { BALIX = null; renderOverview(); try { renderStories(); } catch (e) {} try { renderSpark(); } catch (e) {} renderStocks(); renderCal(); renderTxOptions(); renderTx(); renderForm(); }
+function renderAll() { BALIX = null; renderOverview(); try { renderInsights(); } catch (e) {} try { renderStories(); } catch (e) {} try { renderSpark(); } catch (e) {} renderStocks(); renderCal(); renderTxOptions(); renderTx(); renderForm(); }
 
 /* ---------- 總覽 ---------- */
 function renderOverview() {
@@ -750,7 +803,7 @@ function icon(cat) { var x = ICONS[cat] || ['🏷️', '#9a8c7c']; return '<div 
 function ccolor(cat) { return (ICONS[cat] || [0, '#8e8e93'])[1]; }
 function amt(v) { return parseFloat(String(v == null ? '' : v).replace(/,/g, '')) || 0; }
 // 算進收支：轉帳（含換匯）、卡費、股票買賣不算；外幣照原幣別分開算
-function counted(t) { return !(t.cat === '轉帳' || t.cat === '卡費' || t.cat === '股票'); }
+function counted(t) { return !(t.cat === '轉帳' || t.cat === '卡費' || t.cat === '股票' || t.ty === '不計'); }
 // 這些類別的退款（收入）直接從同類別支出扣掉，不算收入
 var NETCATS = { '出國': 1 };
 function isNet(t) { return NETCATS[t.cat] && amt(t.inc) > 0; }
@@ -804,7 +857,8 @@ function dayGroups(rows, idPrefix) {
       groups[d].map(function (t) {
         var isOut = t.out !== '' && t.out != null, v = amt(isOut ? t.out : t.inc), c = counted(t);
         var a = (isOut ? '-' : '+') + money(v, cur(t));
-        return '<div class="trow" onclick="editTx(' + t._i + ')">' + icon(t.cat) + '<div class="l"><div class="c">' + esc(t.cat || '未分類') + '</div><div class="n">' + esc(t.note || '') + '</div></div>' +
+        var tg = t.ty === '不計' ? '<span class="tag2">不計</span>' : t.ty === '推播' ? '<span class="tag2">推播</span>' : '';
+        return '<div class="trow" onclick="editTx(' + t._i + ')">' + icon(t.cat) + '<div class="l"><div class="c">' + esc(t.cat || '未分類') + tg + '</div><div class="n">' + esc(t.note || '') + '</div></div>' +
           '<div class="r"><div class="a ' + (!c ? 'x' : isOut ? 'ro' : 'gi') + '">' + a + '</div><div class="m">' + esc(t.acc) + '・' + esc(t.t) + '</div></div></div>';
       }).join('') + '</div>';
   }).join('');
@@ -985,7 +1039,7 @@ function addEntry() {
 
 
 /* ---------- 淨資產趨勢 ---------- */
-/* ---------- 編輯分類／備註 ---------- */
+/* ---------- 編輯一筆（分類／備註／金額／日期／帳戶／不記入收支／作廢） ---------- */
 var ETX = null;
 function editTx(i) {
   var t = D.tx[i]; if (!t) return;
@@ -993,13 +1047,19 @@ function editTx(i) {
   ETX = t;
   var isOut = t.out !== '' && t.out != null, v = amt(isOut ? t.out : t.inc);
   $('eHead').innerHTML = icon(t.cat) + '<div><div class="amt ' + (isOut ? 'ro' : 'gi') + '">' + (isOut ? '-' : '+') + money(v, cur(t)) + '</div>' +
-    '<div class="meta">' + esc(t.d) + ' ' + esc(t.t) + '・' + esc(t.acc) + '</div></div>';
+    '<div class="meta">' + esc(t.d) + ' ' + esc(t.t) + '・' + esc(t.acc) + (t.ty ? '・' + esc(t.ty) : '') + '</div></div>';
   var cnt = {};
   D.tx.forEach(function (x) { if (x.cat) cnt[x.cat] = (cnt[x.cat] || 0) + 1; });
   var cats = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; });
   $('eCatList').innerHTML = cats.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('');
   $('eChips').innerHTML = cats.filter(function (c) { return c !== '未分類'; }).slice(0, 12).map(function (c) { return '<button type="button" data-c="' + esc(c) + '">' + esc(c) + '</button>'; }).join('');
-  $('eCat').value = t.cat || ''; $('eNote').value = t.note || '';
+  $('eCat').value = t.cat === '未分類' ? '' : (t.cat || ''); $('eNote').value = t.note || '';
+  $('eAmt').value = v; $('eDate').value = t.d; $('eTime').value = (t.t || '').padStart(5, '0');
+  var same = D.accounts.filter(function (a) { return isCard(a.name) === (t.s === '信用卡') && (a.cur || 'TWD') === cur(t); }).map(function (a) { return a.name; });
+  if (same.indexOf(t.acc) < 0) same.unshift(t.acc);
+  $('eAcc').innerHTML = same.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join(''); $('eAcc').value = t.acc;
+  $('eNoCnt').checked = t.ty === '不計';
+  $('eVoid').classList.remove('arm'); $('eVoid').textContent = '作廢這筆（記錯或重複）';
   syncECat();
   $('eSave').disabled = false;
   $('editSheet').style.display = 'flex'; lockScroll();
@@ -1011,24 +1071,181 @@ function syncECat() {
   D.tx.forEach(function (x) { if (x.cat === c && x.note) notes[x.note] = 1; });
   $('eNoteList').innerHTML = Object.keys(notes).slice(0, 60).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
 }
+function editFail(e) {
+  $('eSave').disabled = false;
+  var m = e && e.message || '更新失敗';
+  if (/核對失敗/.test(m)) { closeEdit(); toast('這筆在試算表的位置變了，已重新整理，請再點一次'); load(); }
+  else toast(m);
+}
 function saveEdit() {
   var t = ETX; if (!t) return;
-  var cat = $('eCat').value.trim(), note = $('eNote').value.trim();
+  var isOut = t.out !== '' && t.out != null;
+  var cat = $('eCat').value.trim(), note = $('eNote').value.trim(), a = parseFloat($('eAmt').value);
+  var d = $('eDate').value, tm = $('eTime').value, acc = $('eAcc').value;
   if (!cat) { toast('請填分類'); return; }
-  if (cat === (t.cat || '') && note === (t.note || '')) { closeEdit(); return; }
+  if (!(a > 0)) { toast('請輸入金額'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { toast('請選日期'); return; }
+  var ty = $('eNoCnt').checked ? '不計' : (t.ty === '不計' || t.ty === '推播' ? '一般' : (t.ty || '一般'));
+  var set = {};
+  if (cat !== (t.cat || '')) set.cat = cat;
+  if (note !== (t.note || '')) set.note = note;
+  if (ty !== (t.ty || '')) set.type = ty;
+  if (Math.abs(a - t.v) > 0.0001) set[isOut ? 'out' : 'inc'] = a;
+  if (d !== t.d) set.date = d;
+  if (tm && tm !== (t.t || '').padStart(5, '0')) set.time = tm;
+  if (acc !== t.acc) set.acc = acc;
+  if (!Object.keys(set).length) { closeEdit(); return; }
+  var money = 'out' in set || 'inc' in set || 'date' in set || 'time' in set || 'acc' in set;
   $('eSave').disabled = true;
-  var data = [{ row: t.r, date: t.d, acc: t.acc, amt: t.v, set: { cat: cat, note: note } }];
-  api({ action: 'patch', token: TK, sheet: t.s, data: JSON.stringify(data) }, true).then(function () {
-    D.tx.forEach(function (x) { if (x.s === t.s && x.r === t.r) { x.cat = cat; x.note = note; } });
-    closeEdit(); toast('已更新');
-    renderTx(); if (SHEETCAT) renderSheet(); renderForm();
-  }).catch(function (e) {
-    $('eSave').disabled = false;
-    var m = e && e.message || '更新失敗';
-    if (/核對失敗/.test(m)) { closeEdit(); toast('這筆在試算表的位置變了，已重新整理，請再點一次'); load(); }
-    else toast(m);
-  });
+  api({ action: 'edit', token: TK, sheet: t.s, data: JSON.stringify({ row: t.r, date: t.d, acc: t.acc, amt: t.v, set: set }) }, true).then(function () {
+    closeEdit(); toast(money ? '已更新，結餘重算完成' : '已更新');
+    if (money) return load();
+    D.tx.forEach(function (x) { if (x.s === t.s && x.r === t.r) { if (set.cat) x.cat = set.cat; if ('note' in set) x.note = set.note; if (set.type) x.ty = set.type; } });
+    renderTx(); if (SHEETCAT) renderSheet(); renderForm(); renderInsights(); refreshOvl();
+  }).catch(editFail);
 }
+function voidTx() {
+  var t = ETX, b = $('eVoid'); if (!t) return;
+  if (!b.classList.contains('arm')) { b.classList.add('arm'); b.textContent = '再按一次確認作廢（搬到「作廢」分頁，不會刪掉）'; return; }
+  b.disabled = true;
+  api({ action: 'edit', token: TK, sheet: t.s, data: JSON.stringify({ row: t.r, date: t.d, acc: t.acc, amt: t.v, "void": true }) }, true).then(function () {
+    b.disabled = false; closeEdit(); toast('已作廢，結餘重算完成'); return load();
+  }).catch(function (e) { b.disabled = false; editFail(e); });
+}
+
+/* ---------- 待確認／搜尋 ---------- */
+function pending() { return D.tx.filter(function (t) { return t.cat === '未分類' || !t.cat || t.ty === '推播'; }); }
+function openOvl(id) { if ($(id).style.display !== 'block') lockScroll(); $(id).style.display = 'block'; $(id).scrollTop = 0; }
+function closeOvl(id) { if ($(id).style.display === 'block') unlockScroll(); $(id).style.display = 'none'; }
+function openInbox() { openOvl('inbox'); renderInbox(); }
+function confirmAll() {
+  var rows = D.tx.filter(function (t) { return t.ty === '推播' && t.cat && t.cat !== '未分類' && t.r; });
+  if (!rows.length) { toast('沒有可以一次確認的'); return; }
+  var b = $('ibAll'); b.disabled = true;
+  var by = {};
+  rows.forEach(function (t) { (by[t.s] = by[t.s] || []).push({ row: t.r, date: t.d, acc: t.acc, amt: t.v, set: { type: '一般' } }); });
+  var jobs = Object.keys(by).map(function (sh) { return api({ action: 'patch', token: TK, sheet: sh, data: JSON.stringify(by[sh]) }, true); });
+  Promise.all(jobs).then(function () {
+    rows.forEach(function (t) { t.ty = '一般'; });
+    toast('已確認 ' + rows.length + ' 筆'); renderInbox(); renderInsights(); renderTx();
+  }).catch(editFail).then(function () { b.disabled = false; });
+}
+function renderInbox() {
+  var nb = D.tx.filter(function (t) { return t.ty === '推播' && t.cat && t.cat !== '未分類'; }).length;
+  $('ibAll').style.display = nb ? 'block' : 'none'; $('ibAll').textContent = '這 ' + nb + ' 筆推播的分類都對，全部確認'; $('ibList').innerHTML = dayGroups(pending(), '') || '<div class="card muted" style="text-align:center">全部確認完了 🎉</div>'; }
+function openSearch() { openOvl('search'); setTimeout(function () { $('q').focus(); }, 50); renderSearch(); }
+function renderSearch() {
+  var q = $('q').value.trim().toLowerCase().replace(/,/g, '');
+  if (!q) { $('sCount').textContent = ''; $('sList').innerHTML = ''; return; }
+  var isNum = /^\d+(\.\d+)?$/.test(q);
+  var hit = D.tx.filter(function (t) {
+    if (isNum) { var v = String(t.v); if (v === q || v.indexOf(q) === 0) return true; }
+    return ((t.cat || '') + ' ' + (t.note || '') + ' ' + t.acc).toLowerCase().indexOf(q) >= 0;
+  });
+  $('sCount').textContent = '找到 ' + hit.length + ' 筆' + (hit.length > 300 ? '，只顯示最近 300 筆' : '');
+  $('sList').innerHTML = dayGroups(sortRows(hit).slice(0, 300), '');
+}
+function refreshOvl() { if ($('inbox').style.display === 'block') renderInbox(); if ($('search').style.display === 'block') renderSearch(); }
+
+/* ---------- 總覽：待確認、固定支出、信用卡 ---------- */
+function ymKey(dt) { return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0'); }
+function noteHead(t) { return String(t.note || '').split(' / ')[0].replace(/（.*?）|\(.*?\)/g, '').trim(); }
+var FIXSKIP = { '轉帳': 1, '股票': 1, '現金': 1, '代墊': 1, '未分類': 1, '餐飲': 1, '購物': 1, '網購': 1, '禮物': 1, '交通': 1, '出國': 1 };
+function fixedItems() {
+  var now = new Date(), cm = ymKey(now), prev = [1, 2, 3].map(function (k) { return ymKey(new Date(now.getFullYear(), now.getMonth() - k, 1)); });
+  var g = {}, cur0 = [];
+  D.tx.forEach(function (t) {
+    var isOut = t.out !== '' && t.out != null; if (!isOut || FIXSKIP[t.cat] || t.ty === '不計' || cur(t) !== 'TWD') return;
+    if (t.s === '信用卡' && t.cat === '卡費') return;
+    var m = t.d.slice(0, 7);
+    if (m === cm) { cur0.push(t); return; }
+    if (prev.indexOf(m) < 0) return;
+    var k = t.cat + '|' + noteHead(t), o = g[k] || (g[k] = { cat: t.cat, name: noteHead(t) || t.cat, key: noteHead(t), m: {} });
+    (o.m[m] = o.m[m] || []).push(t);
+  });
+  // 備註空白的（例如「運動」888）併到同分類、金額相同的那組
+  Object.keys(g).forEach(function (k) {
+    var o = g[k]; if (o.key) return;
+    Object.keys(g).forEach(function (k2) { var o2 = g[k2]; if (k2 === k || o2.cat !== o.cat || !o2.key) return;
+      var a1 = Object.keys(o.m).map(function (m) { return o.m[m][0].v; }), a2 = Object.keys(o2.m).map(function (m) { return o2.m[m][0].v; });
+      if (a1.some(function (x) { return a2.indexOf(x) >= 0; })) { Object.keys(o.m).forEach(function (m) { o2.m[m] = (o2.m[m] || []).concat(o.m[m]); }); delete g[k]; }
+    });
+  });
+  var out = [];
+  Object.keys(g).forEach(function (k) {
+    var o = g[k]; if (!prev.every(function (m) { return o.m[m]; })) return;
+    if (prev.some(function (m) { return o.m[m].length > 2; })) return;   // 一個月好幾次的不算固定
+    var days = prev.map(function (m) { return +o.m[m][0].d.slice(8); }).sort(function (a, b) { return a - b; });
+    if (days[2] - days[0] > 6) return;
+    var amts = prev.map(function (m) { return o.m[m][0].v; }), lo = Math.min.apply(null, amts), hi = Math.max.apply(null, amts);
+    if (!/卡費/.test(o.cat) && hi > lo * 1.35) return;                    // 金額忽大忽小的不算（卡費除外）
+    var last = o.m[prev[0]][0];
+    var paid = cur0.filter(function (t) { return t.cat === o.cat && (noteHead(t) === o.key || (!noteHead(t) || !o.key) && Math.abs(t.v - last.v) <= last.v * 0.15 || /卡費/.test(o.cat) && noteHead(t) === o.key); })[0] || null;
+    if (/卡費/.test(o.cat)) o.name = '卡費 ' + String(last.note || '').replace(/^轉至\s*/, '');
+    out.push({ cat: o.cat, name: o.name, acc: (paid || last).acc, day: days[1], amt: paid ? paid.v : last.v, paid: paid });
+  });
+  return out.sort(function (a, b) { return (a.paid ? 0 : 1) - (b.paid ? 0 : 1) || a.day - b.day; });
+}
+var CARDCYC = { '永豐信用卡': { close: 15, due: 2 }, '中國信託中油卡': { close: 27, due: 15 }, '玉山信用卡': { close: 5, due: 23 }, '玉山信用卡日圓': { close: 5, due: 23 } };
+function ymd2(dt) { return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
+function cardInfo(a) {
+  var cy = CARDCYC[a.name]; if (!cy) return null;
+  var now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  var close = now.getDate() >= cy.close ? new Date(y, m, cy.close) : new Date(y, m - 1, cy.close);
+  var nextClose = new Date(close.getFullYear(), close.getMonth() + 1, cy.close);
+  var due = new Date(close.getFullYear(), close.getMonth() + (cy.due > cy.close ? 0 : 1), cy.due);
+  var ck = ymd2(close), rows = D.tx.filter(function (t) { return t.acc === a.name; });   // 新→舊
+  var atClose = null, paid = 0;
+  rows.forEach(function (t) {
+    if (t.d > ck) { if (t.cat === '卡費') paid += amt(t.inc); }
+    else if (atClose === null) atClose = amt(t.bal);
+  });
+  var debt = Math.max(0, -(num(a.bal) ? a.bal : 0));
+  var billed = Math.max(0, -(atClose || 0) - paid);
+  return { name: a.name, cur: a.cur || 'TWD', debt: debt, billed: billed, unbilled: Math.max(0, debt - billed), due: due, close: close, nextClose: nextClose };
+}
+function md(dt) { return (dt.getMonth() + 1) + '/' + dt.getDate(); }
+function renderInsights() {
+  var n = pending().length;
+  $('ovInbox').innerHTML = n ? '<div class="ibn" onclick="openInbox()"><div><b>待確認</b><div class="muted">未分類或推播自動記的</div></div><span class="cnt">' + n + '</span></div>' : '';
+  var fx = fixedItems(), today = new Date().getDate();
+  if (fx.length) {
+    var done = fx.filter(function (x) { return x.paid; }), left = fx.filter(function (x) { return !x.paid; });
+    var sumL = left.reduce(function (s, x) { return s + x.amt; }, 0);
+    $('ovFixed').style.display = 'block';
+    $('ovFixed').innerHTML = '<h2 style="display:flex;justify-content:space-between"><span>本月固定支出</span><span>' + done.length + '/' + fx.length + '</span></h2>' +
+      '<div class="muted" style="margin-bottom:4px">' + (left.length ? '還有 ' + left.length + ' 項，約 $' + fmt(sumL) : '這個月都扣完了') + '</div>' +
+      fx.map(function (x) {
+        var st = x.paid ? '<div class="st-ok">✓ ' + md(new Date(x.paid.d + 'T00:00:00')) + ' 已扣</div>' : (x.day + 2 < today ? '<div class="st-late">該扣了（約 ' + x.day + ' 日）</div>' : '<div class="st-wait">約 ' + x.day + ' 日</div>');
+        return '<div class="fx-row">' + icon(x.cat) + '<div class="l"><div class="n">' + esc(x.name) + '</div><div class="m">' + esc(x.acc) + '</div></div><div class="r"><div>$' + fmt(x.amt) + '</div>' + st + '</div></div>';
+      }).join('');
+  } else $('ovFixed').style.display = 'none';
+  var cards = D.accounts.map(cardInfo).filter(Boolean);
+  if (cards.length) {
+    $('ovCards').style.display = 'block';
+    $('ovCards').innerHTML = '<h2>信用卡</h2>' + cards.map(function (c) {
+      return '<div class="cc-row"><div class="cc-top"><b>' + esc(c.name) + '</b><span>欠 ' + money(c.debt, c.cur) + '</span></div>' +
+        '<div class="cc-sub"><span>' + (c.billed > 0.5 ? '已出帳 ' + money(c.billed, c.cur) + '・' + md(c.due) + ' 扣款' : '上期已繳清') + '</span><span>本期 ' + money(c.unbilled, c.cur) + '・' + md(c.nextClose) + ' 結帳</span></div></div>';
+    }).join('') + '<div class="muted" style="margin-top:6px;font-size:11px">結帳日是從帳單信推估的，可能差 1–2 天</div>';
+  } else $('ovCards').style.display = 'none';
+}
+
+/* ---------- 下拉重新整理 ---------- */
+(function () {
+  var y0 = null, dy = 0, P = function () { return $('ptr'); };
+  document.addEventListener('touchstart', function (e) {
+    var app = $('app'); if (!app || app.style.display === 'none' || locks || app.scrollTop > 0) { y0 = null; return; }
+    y0 = e.touches[0].clientY; dy = 0;
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (y0 === null) return; dy = e.touches[0].clientY - y0;
+    if (dy > 10 && $('app').scrollTop <= 0) { var k = Math.min(dy, 120); P().style.transform = 'translate(-50%,' + (k / 2 - 50) + 'px)'; P().textContent = dy > 80 ? '放開重新整理' : '下拉重新整理'; }
+  }, { passive: true });
+  document.addEventListener('touchend', function () {
+    if (y0 === null) return; y0 = null; P().style.transform = '';
+    if (dy > 80) { toast('重新整理中…'); load(); }
+  });
+})();
 
 var TR = { metric: 'net', y: null, m: 'y', chart: null }, BALIX = null;
 var TRNAME = { net: '淨資產', asset: '總資產', debt: '總負債' };
