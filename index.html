@@ -287,7 +287,7 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
 /* 編輯分類／備註 */
 .trow{cursor:pointer}.trow:active{opacity:.6}
 #editSheet{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40;display:none;align-items:flex-end}
-.epanel{background:var(--bg);width:100%;max-height:90vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:6px 16px calc(24px + env(safe-area-inset-bottom));animation:up .22s ease-out}
+.epanel{background:var(--bg);width:100%;max-height:90vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:6px 16px calc(24px + env(safe-area-inset-bottom));animation:up .22s ease-out;overscroll-behavior:contain;touch-action:pan-y;will-change:transform;-webkit-overflow-scrolling:touch}
 .ehead{display:flex;align-items:center;gap:12px;padding:6px 0 14px;border-bottom:1px solid var(--line);margin-bottom:12px}
 .ehead .amt{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
 .ehead .meta{font-size:13px;color:var(--muted);margin-top:2px}
@@ -297,7 +297,8 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
 .ebtns .save{background:var(--acc);color:#fff}
 .ebtns button:disabled{opacity:.5}
 .e2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.e2 input,.e2 select{margin:6px 0 10px}
+.e2>div{min-width:0}
+.e2 input,.e2 select{margin:6px 0 10px;min-width:0;width:100%;max-width:100%;-webkit-appearance:none;appearance:none;min-height:46px;text-align:left}
 .etog{display:flex;align-items:center;justify-content:space-between;padding:10px 0 12px;font-size:15px}
 .etog input{width:22px;height:22px;margin:0;accent-color:var(--acc)}
 .evoid{width:100%;background:none;border:1px solid #d9b7b3;color:#b0534b;border-radius:10px;padding:12px;font-size:15px;margin-top:10px;font-family:inherit}
@@ -686,28 +687,29 @@ function unlockScroll() { if (--locks > 0) return; locks = 0; $('app').style.ove
 (function () {
   var panel, sy = 0, dy = 0, drag = false, startTop = false;
   document.addEventListener('touchstart', function (e) {
-    panel = e.target.closest && e.target.closest('.dpanel'); if (!panel) return;
+    panel = e.target.closest && e.target.closest('.dpanel,.epanel'); if (!panel) return;
     sy = e.touches[0].clientY; dy = 0; drag = false;
-    startTop = panel.scrollTop <= 0 || !!e.target.closest('.grab,.dtop');
+    startTop = panel.scrollTop <= 0 || !!e.target.closest('.grab,.dtop,.ehead');
     panel.style.transition = '';
   }, { passive: true });
   document.addEventListener('touchmove', function (e) {
     if (!panel) return;
     var d = e.touches[0].clientY - sy;
-    if (!drag && startTop && d > 6 && panel.scrollTop <= 0) drag = true;
+    if (!drag && startTop && d > 6 && panel.scrollTop <= 0) { drag = true; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
     if (drag) {
       e.preventDefault();
       dy = Math.max(0, d);
       panel.style.transform = 'translateY(' + dy + 'px)';
-      $('daySheet').style.background = 'rgba(0,0,0,' + (0.55 * Math.max(0, 1 - dy / 400)).toFixed(3) + ')';
+      panel.parentElement.style.background = 'rgba(0,0,0,' + (0.55 * Math.max(0, 1 - dy / 400)).toFixed(3) + ')';
     }
   }, { passive: false });
   document.addEventListener('touchend', function () {
     if (!panel) return;
     if (drag) {
       panel.style.transition = 'transform .22s ease-out';
-      if (dy > 110) { panel.style.transform = 'translateY(100%)'; setTimeout(closeDay, 200); }
-      else { panel.style.transform = ''; $('daySheet').style.background = ''; }
+      var pn = panel, ov = pn.parentElement, isEdit = ov.id === 'editSheet';
+      if (dy > 110) { pn.style.transform = 'translateY(100%)'; setTimeout(function () { (isEdit ? closeEdit : closeDay)(); pn.style.transition = ''; pn.style.transform = ''; ov.style.background = ''; }, 200); }
+      else { pn.style.transform = ''; ov.style.background = ''; }
     }
     panel = null; drag = false;
   });
