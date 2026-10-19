@@ -1,1 +1,1 @@
-{"name":"我的記帳","short_name":"記帳","start_url":"./","scope":"./","display":"standalone","background_color":"#f5efe6","theme_color":"#f5efe6","icons":[{"src":"icon.png","sizes":"512x512","type":"image/png"}]}
+{"name": "我的記帳", "short_name": "記帳", "start_url": "./", "scope": "./", "display": "standalone", "background_color": "#f5efe6", "theme_color": "#f5efe6", "icons": [{"src": "icon.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "any"}, {"src": "apple-touch-icon.png?v=2", "sizes": "180x180", "type": "image/png"}]}
