@@ -1393,7 +1393,7 @@ function fixedItems() {
   });
   return out.sort(function (a, b) { return (a.paid ? 0 : 1) - (b.paid ? 0 : 1) || a.day - b.day; });
 }
-var CARDCYC = { '永豐信用卡': { close: 15, due: 2 }, '中國信託中油卡': { close: 27, due: 15 }, '玉山信用卡': { close: 5, due: 23 }, '玉山信用卡日圓': { close: 5, due: 23 } };
+var CARDCYC = { '永豐信用卡': { close: 18, due: 2 }, '中國信託中油卡': { close: 27, due: 15 }, '玉山信用卡': { close: 5, due: 23 }, '玉山信用卡日圓': { close: 5, due: 23 } };
 function ymd2(dt) { return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
 function cardInfo(a) {
   var cy = CARDCYC[a.name]; if (!cy) return null;
