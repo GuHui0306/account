@@ -210,7 +210,7 @@ h2{color:var(--text);font-size:15px;font-weight:700;margin-bottom:10px}
 .igtop .ib{background:none;border:0;padding:6px;margin-left:6px;color:var(--text)}
 .igtop .ib svg,.ph .ib svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}
 /* 限時動態：帳戶 */
-.st-next{font-size:11px;color:var(--muted);margin-top:1px}
+.st-next{font-size:12px;color:var(--muted);margin-top:1px}
 .stories{display:flex;gap:14px;overflow-x:auto;padding:6px 14px 14px;border-bottom:1px solid var(--line);scrollbar-width:none}
 .stories::-webkit-scrollbar{display:none}
 .st{flex:0 0 auto;width:68px;text-align:center;background:none;border:0;padding:0;font-family:inherit;color:var(--text)}
@@ -1397,7 +1397,7 @@ function fixedItems() {
     if (/卡費/.test(o.cat)) o.name = '卡費 ' + String(last.note || '').replace(/^轉至\s*/, '');
     out.push({ cat: o.cat, name: o.name, acc: (paid || last).acc, day: days[1], amt: paid ? paid.v : last.v, paid: paid });
   });
-  return out.sort(function (a, b) { return (a.paid ? 0 : 1) - (b.paid ? 0 : 1) || a.day - b.day; });
+  return out.sort(function (a, b) { return (a.paid ? 1 : 0) - (b.paid ? 1 : 0) || a.day - b.day; });   // 還沒扣的在前，已扣（顯示下一次）在後
 }
 var CARDCYC = { '永豐信用卡': { close: 18, due: 2 }, '中國信託中油卡': { close: 27, due: 15 }, '玉山信用卡': { close: 5, due: 23 }, '玉山信用卡日圓': { close: 5, due: 23 } };
 function ymd2(dt) { return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
@@ -1430,8 +1430,14 @@ function renderInsights() {
       '<div class="muted" style="margin-bottom:4px">' + (left.length ? '還有 ' + left.length + ' 項，約 $' + fmt(sumL) : '這個月都扣完了') + '</div>' +
       fx.map(function (x) {
         var pd = x.paid && new Date(x.paid.d + 'T00:00:00'), nx = pd && new Date(pd.getFullYear(), pd.getMonth() + 1, Math.min(pd.getDate(), new Date(pd.getFullYear(), pd.getMonth() + 2, 0).getDate()));
-        var st = x.paid ? '<div class="st-ok">✓ ' + md(pd) + ' 已扣</div><div class="st-next">下次 ' + md(nx) + '</div>' : (x.day + 2 < today ? '<div class="st-late">該扣了（約 ' + x.day + ' 日）</div>' : '<div class="st-wait">約 ' + x.day + ' 日</div>');
-        return '<div class="fx-row">' + icon(x.cat) + '<div class="l"><div class="n">' + esc(x.name) + '</div><div class="m">' + esc(x.acc) + '</div></div><div class="r"><div>$' + fmt(x.amt) + '</div>' + st + '</div></div>';
+        var nAmt = x.amt, est = false;
+        if (x.paid && /卡費/.test(x.cat)) {   // 卡費下一次金額：已出帳就用帳單金額，還沒出帳就用目前累積（估）
+          var ca = D.accounts.filter(function (a) { return x.name.indexOf(a.name) >= 0 && CARDCYC[a.name]; })[0], ci = ca && cardInfo(ca);
+          if (ci) { if (ci.billed > 0.5) { nAmt = ci.billed; nx = ci.due; } else if (ci.unbilled >= 1) { nAmt = ci.unbilled; est = true; } else est = true; }
+        }
+        x.showAmt = nAmt;
+        var st = x.paid ? '<div class="st-next">下次 ' + md(nx) + (est ? '（估）' : '') + '</div>' : (x.day + 2 < today ? '<div class="st-late">該扣了（約 ' + x.day + ' 日）</div>' : '<div class="st-wait">約 ' + x.day + ' 日</div>');
+        return '<div class="fx-row">' + icon(x.cat) + '<div class="l"><div class="n">' + esc(x.name) + '</div><div class="m">' + esc(x.acc) + '</div></div><div class="r"><div>$' + fmt(x.showAmt) + '</div>' + st + '</div></div>';
       }).join('');
   } else $('ovFixed').style.display = 'none';
   var cards = D.accounts.map(cardInfo).filter(Boolean);
