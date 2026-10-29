@@ -242,21 +242,31 @@ h2{color:var(--text);font-size:15px;font-weight:700;margin-bottom:10px}
 .cap b{font-weight:700;margin-right:6px}
 .post .bar{margin:10px 16px 8px;height:6px;border-radius:3px;background:var(--line)}
 .post .legend{padding:0 16px}
-/* 首頁：各帳戶餘額 */
-#ovBal{padding:2px 12px 10px}
-#ovCards{display:none!important}   /* 信用卡應繳已併入上方帳戶餘額 */
-.balc{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:2px 14px;margin-bottom:10px}
-.balh{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 6px;font-size:13px;color:var(--muted)}
-.balh b{font-size:15px;color:var(--text);font-weight:700}
-.balh span{font-variant-numeric:tabular-nums}
-.brow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);cursor:pointer}
-.brow .dot{width:30px;height:30px;border-radius:50%;flex:0 0 30px;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
-.brow .nm{flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brow .nm small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
-.brow .v{text-align:right;font-size:16.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
-.brow .v small{display:block;font-size:11.5px;font-weight:500;color:var(--muted);margin-top:1px}
-.brow .v.neg{color:var(--down)}
-.balz{font-size:12px;color:var(--muted);padding:8px 0 10px;border-top:1px solid var(--line)}
+/* 首頁：各帳戶餘額（磚塊） */
+#ovBal{padding:14px 12px 6px}
+/* 首頁淨資產卡片縮矮一點，讓帳戶磚塊打開就看得到 */
+.hero{padding:16px 18px 10px}
+.hero .big{font-size:32px}
+.pstats{padding:10px 8px 2px}
+#ovCards{display:none!important}   /* 信用卡應繳已併入帳戶餘額 */
+.bsec{display:flex;justify-content:space-between;align-items:baseline;padding:4px 4px 8px}
+.bsec b{font-size:16px;font-weight:800;color:var(--text)}
+.bsec span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.bt{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 12px 11px 14px;overflow:hidden;cursor:pointer;min-width:0;box-shadow:0 1px 2px rgba(90,70,54,.04)}
+.bt:active{transform:scale(.98)}
+.bt::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--bc,#a8876a)}
+.bt .n{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bt .n i{width:8px;height:8px;border-radius:50%;background:var(--bc,#a8876a);flex:0 0 8px}
+.bt .v{font-size:20px;font-weight:800;letter-spacing:-.3px;margin-top:6px;font-variant-numeric:tabular-nums;color:var(--text);white-space:nowrap}
+.bt .s{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bt.wide{grid-column:span 2;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bt.wide .v{margin-top:2px}
+.bt.debt{background:#f6ece6}
+.bt.debt .v{color:#a4503a}
+.bt .pill{flex:0 0 auto;font-size:12px;font-weight:600;padding:6px 10px;border-radius:12px;background:#fff;color:#a4503a;border:1px solid #ead6cc;text-align:right;line-height:1.35}
+.bt .pill small{display:block;font-weight:500;color:var(--muted);font-size:11px}
+.balz{font-size:12px;color:var(--muted);padding:0 4px 6px}
 .acchd{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 4px}
 .acchd b{font-size:16px}
 #accList{padding:0 16px}
@@ -398,7 +408,6 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
   <section id="p0" class="page on">
     <div class="igtop"><div class="logo">我的記帳</div><div><button class="ib" onclick="load()" aria-label="重新整理"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button><button class="ib" onclick="go(3)" aria-label="記一筆"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/></svg></button></div></div>
     <div id="ovInbox"></div>
-    <div id="ovBal"></div>
     <div class="post">
       <div class="ph"><div class="av"><div>淨</div></div><div class="who"><b>淨資產</b><span id="syncTxt">含股票</span></div><button class="ib" onclick="openTrend()" aria-label="看趨勢"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></button></div>
       <div class="hero" onclick="openTrend()"><div class="lb">淨資產（含股票）</div><div class="big" id="netTotal">-</div><div id="spark"></div></div>
@@ -406,6 +415,7 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
       <div class="bar" id="allocBar"></div>
       <div class="legend" id="allocLegend"></div>
     </div>
+    <div id="ovBal"></div>
     <div class="card" id="ovFixed" style="display:none"></div>
     <div class="card" id="ovCards" style="display:none"></div>
     <div style="display:none"><span id="accCnt"></span><div id="accList"></div></div>
@@ -635,6 +645,8 @@ function go(i) {
 function renderAll() { BALIX = null; renderOverview(); try { renderInsights(); } catch (e) {} try { if (STTAB === 'd') renderDiv(); if ($('stk').style.display === 'block') renderStock(); } catch (e) {} try { renderStories(); } catch (e) {} try { renderSpark(); } catch (e) {} renderStocks(); renderCal(); renderTxOptions(); renderTx(); renderForm(); }
 
 /* ---------- 總覽 ---------- */
+var BANKC = [[/將來/, '#3f7f8f'], [/中國信託|中信/, '#2f7d6b'], [/國泰/, '#4b8a5a'], [/永豐/, '#c0624a'], [/富邦/, '#3d6a9a'], [/玉山/, '#5f8f6f'], [/台股/, '#8c7a5b'], [/美股/, '#6c7f99']];
+function bankC(n) { for (var i = 0; i < BANKC.length; i++) if (BANKC[i][0].test(n)) return BANKC[i][1]; return '#a8876a'; }
 function renderBalances() {
   var s = D.summary, st = D.stockSum, deps = [], cards = [], zero = [];
   D.accounts.forEach(function (a) {
@@ -644,23 +656,24 @@ function renderBalances() {
   });
   deps.sort(function (a, b) { return b.twd - a.twd; });
   cards.sort(function (a, b) { return a.twd - b.twd; });
-  function row(a, sub, val, neg) {
-    var av = accAvatar(a.name);
-    return '<div class="brow" onclick="showAcc(this.dataset.n)" data-n="' + esc(a.name) + '"><div class="dot" style="background:' + av.c + '">' + esc(av.t) + '</div>' +
-      '<div class="nm">' + esc(a.name) + (sub ? '<small>' + sub + '</small>' : '') + '</div><div class="v' + (neg ? ' neg' : '') + '">' + val + '</div></div>';
-  }
-  var h = '<div class="balc"><div class="balh"><b>存款</b><span>$' + fmt(s.deposit) + '</span></div>' +
-    deps.map(function (a) { return row(a, '', a.cur !== 'TWD' ? '$' + fmt(a.twd) + '<small>' + money(a.bal, a.cur) + '</small>' : '$' + fmt(a.twd)); }).join('') + '</div>';
-  if (cards.length) h += '<div class="balc"><div class="balh"><b>信用卡</b><span>欠 $' + fmt(Math.abs(s.debt || 0)) + '</span></div>' +
-    cards.map(function (a) {
-      var c = cardInfo(a), sub = '';
-      if (c) sub = c.billed > 0.5 ? '應繳約 ' + money(c.billed, c.cur) + '・' + md(c.due) + ' 扣款' : '本期累積 ' + money(c.unbilled, c.cur) + '・' + md(c.nextClose) + ' 結帳';
-      return row(a, sub, '$' + fmt(Math.abs(a.twd)), true);
+  var tile = function (n, cls, inner, click) { return '<div class="bt ' + cls + '" style="--bc:' + bankC(n) + '" ' + click + '>' + inner + '</div>'; };
+  var acc = function (a) { return 'onclick="showAcc(this.dataset.n)" data-n="' + esc(a.name) + '"'; };
+  var h = '<div class="bsec"><b>存款</b><span>$' + fmt(s.deposit) + '</span></div><div class="bgrid">' +
+    deps.map(function (a) {
+      return tile(a.name, '', '<div class="n"><i></i>' + esc(accShort(a.name)) + '</div><div class="v">$' + fmt(a.twd) + '</div>' +
+        (a.cur !== 'TWD' ? '<div class="s">' + money(a.bal, a.cur) + '</div>' : ''), acc(a));
     }).join('') + '</div>';
-  if (num(st.total)) h += '<div class="balc"><div class="balh"><b>股票</b><span>$' + fmt(st.total) + '</span></div>' +
-    '<div class="brow" onclick="go(1)"><div class="dot" style="background:#8c9a7b">台</div><div class="nm">台股</div><div class="v">$' + fmt(st.tw) + '</div></div>' +
-    '<div class="brow" onclick="go(1)"><div class="dot" style="background:#7f8c99">美</div><div class="nm">美股<small>匯率 ' + fmt(st.fx, 2) + '</small></div><div class="v">$' + fmt(st.us) + '</div></div></div>';
-  if (zero.length) h += '<div class="balz">餘額 0：' + zero.map(function (a) { return esc(a.name); }).join('、') + '</div>';
+  if (cards.length) h += '<div class="bsec"><b>信用卡</b><span>欠 $' + fmt(Math.abs(s.debt || 0)) + '</span></div><div class="bgrid">' +
+    cards.map(function (a) {
+      var c = cardInfo(a), pill = '';
+      if (c) pill = c.billed > 0.5 ? '<div class="pill">應繳 ' + money(c.billed, c.cur) + '<small>' + md(c.due) + ' 扣款</small></div>'
+                                   : '<div class="pill">本期 ' + money(c.unbilled, c.cur) + '<small>' + md(c.nextClose) + ' 結帳</small></div>';
+      return tile(a.name, 'wide debt', '<div style="min-width:0"><div class="n"><i></i>' + esc(a.name) + '</div><div class="v">$' + fmt(Math.abs(a.twd)) + '</div></div>' + pill, acc(a));
+    }).join('') + '</div>';
+  if (num(st.total)) h += '<div class="bsec"><b>股票</b><span>$' + fmt(st.total) + '</span></div><div class="bgrid">' +
+    tile('台股', '', '<div class="n"><i></i>台股</div><div class="v">$' + fmt(st.tw) + '</div>', 'onclick="go(1)"') +
+    tile('美股', '', '<div class="n"><i></i>美股</div><div class="v">$' + fmt(st.us) + '</div><div class="s">匯率 ' + fmt(st.fx, 2) + '</div>', 'onclick="go(1)"') + '</div>';
+  if (zero.length) h += '<div class="balz">餘額 0：' + zero.map(function (a) { return esc(accShort(a.name)); }).join('、') + '</div>';
   $('ovBal').innerHTML = h;
 }
 function renderOverview() {
