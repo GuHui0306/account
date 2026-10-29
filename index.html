@@ -1270,11 +1270,19 @@ function editTx(i) {
   var isOut = t.out !== '' && t.out != null, v = amt(isOut ? t.out : t.inc);
   $('eHead').innerHTML = icon(t.cat) + '<div><div class="amt ' + (isOut ? 'ro' : 'gi') + '">' + (isOut ? '-' : '+') + money(v, cur(t)) + '</div>' +
     '<div class="meta">' + esc(t.d) + ' ' + esc(t.t) + '・' + esc(t.acc) + (t.ty ? '・' + esc(t.ty) : '') + '</div></div>';
-  var cnt = {};
-  D.tx.forEach(function (x) { if (x.cat) cnt[x.cat] = (cnt[x.cat] || 0) + 1; });
-  var cats = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; });
-  $('eCatList').innerHTML = cats.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('');
-  $('eChips').innerHTML = cats.filter(function (c) { return c !== '未分類'; }).slice(0, 12).map(function (c) { return '<button type="button" data-c="' + esc(c) + '">' + esc(c) + '</button>'; }).join('');
+  // 分類按鈕：依你最近半年「同方向（支出／收入）」最常用的排；系統自動記的轉帳、卡費放最後
+  var cnt = {}, all = {}, since = ymd(new Date(Date.now() - 183 * 864e5));
+  D.tx.forEach(function (x) {
+    if (!x.cat) return; all[x.cat] = (all[x.cat] || 0) + 1;
+    var xo = x.out !== '' && x.out != null;
+    if (x.d >= since && xo === isOut && x.cat !== '未分類') cnt[x.cat] = (cnt[x.cat] || 0) + 1 + (all[x.cat] || 0) / 1e6;
+  });
+  var AUTO = { '轉帳': 1, '卡費': 1, '未分類': 1 };
+  var cats = Object.keys(cnt).filter(function (c) { return !AUTO[c]; }).sort(function (a, b) { return cnt[b] - cnt[a]; });
+  Object.keys(all).sort(function (a, b) { return all[b] - all[a]; }).forEach(function (c) { if (!AUTO[c] && cats.indexOf(c) < 0) cats.push(c); });
+  cats = cats.slice(0, 10).concat(['轉帳', '卡費']);
+  $('eCatList').innerHTML = Object.keys(all).map(function (c) { return '<option value="' + esc(c) + '">'; }).join('');
+  $('eChips').innerHTML = cats.map(function (c) { return '<button type="button" data-c="' + esc(c) + '">' + esc(c) + '</button>'; }).join('');
   $('eCat').value = t.cat === '未分類' ? '' : (t.cat || ''); $('eNote').value = t.note || '';
   $('eAmt').value = v; $('eDate').value = t.d; $('eTime').value = (t.t || '').padStart(5, '0');
   var same = D.accounts.filter(function (a) { return isCard(a.name) === (t.s === '信用卡') && (a.cur || 'TWD') === cur(t); }).map(function (a) { return a.name; });
