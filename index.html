@@ -267,6 +267,23 @@ h2{color:var(--text);font-size:15px;font-weight:700;margin-bottom:10px}
 .btl .pill{flex:0 0 auto;font-size:12px;font-weight:600;padding:6px 10px;border-radius:12px;background:#fff;color:#a4503a;border:1px solid #ead6cc;text-align:right;line-height:1.35}
 .btl .pill small{display:block;font-weight:500;color:var(--muted);font-size:11px}
 .balz{font-size:12px;color:var(--muted);padding:0 4px 6px}
+.ibx{position:relative}
+.hbadge{position:absolute;top:0;right:-2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#c0564e;color:#fff;font-size:11px;font-weight:700;align-items:center;justify-content:center;border:2px solid var(--bg)}
+#p4 .lhead{padding-top:10px}
+.repsum{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:4px}
+.repsum .k{font-size:12.5px;color:var(--muted)}
+.repsum .v{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;margin:2px 0}
+.repsum .d{font-size:11.5px;color:var(--muted)}
+.rbars{display:grid;grid-template-columns:repeat(6,1fr);align-items:end;gap:8px;height:160px;padding-top:6px}
+.rb{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:pointer}
+.rb .bar{width:70%;border-radius:8px 8px 3px 3px;background:#d8c9b5}
+.rb.on .bar{background:#8a6a4a}
+.rb .amt{font-size:10.5px;color:var(--muted);margin-bottom:4px;font-variant-numeric:tabular-nums}
+.rb.on .amt{color:var(--text);font-weight:700}
+.rb .lb{font-size:12px;color:var(--muted);margin-top:6px}
+.rb.on .lb{color:var(--text);font-weight:700}
+.repnw{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.repnw b{font-size:15px}
 .acchd{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 4px}
 .acchd b{font-size:16px}
 #accList{padding:0 16px}
@@ -282,8 +299,6 @@ nav button svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width
 nav button span{display:none}
 nav button.on{color:#5a4636}
 nav button.on svg{stroke-width:2.6}
-nav button:nth-child(4){order:2}
-nav button:nth-child(2){order:3}nav button:nth-child(3){order:4}
 /* 表單、按鈕、選單 */
 select,input{background:var(--card);border:1px solid var(--line);color:var(--text)}
 .btn{background:#5a4636;color:#fbf7f1;border-radius:10px;font-weight:600}
@@ -406,8 +421,8 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
 <div id="app" style="display:none">
   <!-- 總覽 -->
   <section id="p0" class="page on">
-    <div class="igtop"><div class="logo">我的記帳</div><div><button class="ib" onclick="load()" aria-label="重新整理"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button><button class="ib" onclick="go(3)" aria-label="記一筆"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/></svg></button></div></div>
-    <div id="ovInbox"></div>
+    <div class="igtop"><div class="logo">我的記帳</div><div><button class="ib" onclick="load()" aria-label="重新整理"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button><button class="ib ibx" onclick="openInbox()" aria-label="待確認"><svg viewBox="0 0 24 24"><path d="M4 13h4l1.5 3h5L16 13h4"/><path d="M5.5 5h13L21 13v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5z"/></svg><span id="hdrCnt" class="hbadge" style="display:none"></span></button></div></div>
+    <div id="ovInbox" style="display:none"></div>
     <div class="post">
       <div class="ph"><div class="av"><div>淨</div></div><div class="who"><b>淨資產</b><span id="syncTxt">含股票</span></div><button class="ib" onclick="openTrend()" aria-label="看趨勢"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></button></div>
       <div class="hero" onclick="openTrend()"><div class="lb">淨資產（含股票）</div><div class="big" id="netTotal">-</div><div id="spark"></div></div>
@@ -458,7 +473,15 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
       </div>
       <div id="dayList"></div>
     </div>
-    <div id="vRep" style="display:none">
+  </section>
+
+  <!-- 報表 -->
+  <section id="p4" class="page">
+    <div id="repHead"></div>
+    <div id="repSum"></div>
+    <div id="repTrend"></div>
+    <div id="repSlot">
+    <div id="vRep">
       <div class="card">
         <h2>類別</h2>
         <div class="donut" id="donut"></div>
@@ -466,10 +489,9 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
       </div>
       <div class="card"><h2>類別統計</h2><div id="catStat"></div></div>
     </div>
-  </section>
-
-  <!-- 記一筆 -->
-  <section id="p4" class="page">
+    </div>
+    <div class="card repnw" onclick="openTrend()"><div><b>淨資產趨勢</b><div class="muted">淨資產、總資產、總負債的走勢</div></div><span class="chev">›</span></div>
+    <div style="display:none">
     <div class="card">
       <h2>記一筆</h2>
       <label>帳戶</label>
@@ -490,14 +512,15 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
       <button class="btn" id="fBtn" onclick="addEntry()">記錄</button>
       <div class="muted" style="margin-top:10px">時間自動填現在，結餘從該帳戶最新一筆往下算，類型標「快速」。</div>
     </div>
+    </div>
   </section>
 </div>
 
 <nav id="nav" style="display:none">
-  <button class="on" onclick="go(0)"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>總覽</span></button>
-  <button onclick="go(1)"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg><span>股票</span></button>
-  <button onclick="go(2)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span>明細</span></button>
-  <button onclick="go(3)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/></svg><span>記一筆</span></button>
+  <button class="on" data-p="0" onclick="go(0)"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>總覽</span></button>
+  <button data-p="2" onclick="go(2)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span>明細</span></button>
+  <button data-p="3" onclick="go(3)"><svg viewBox="0 0 24 24"><path d="M12 3v9l7.8 4.5"/><circle cx="12" cy="12" r="9"/></svg><span>報表</span></button>
+  <button data-p="1" onclick="go(1)"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg><span>股票</span></button>
 </nav>
 
 <div id="vToggle"><button id="tRec" class="on" onclick="setView('rec')">記錄</button><button id="tRep" onclick="setView('rep')">報表</button></div>
@@ -636,13 +659,19 @@ function load() {
 
 function go(i) {
   var pages = document.querySelectorAll('.page'), btns = document.querySelectorAll('nav button');
-  for (var k = 0; k < pages.length; k++) { pages[k].classList.toggle('on', k === i); btns[k].classList.toggle('on', k === i); }
+  for (var k = 0; k < pages.length; k++) pages[k].classList.toggle('on', k === i);
+  for (var j = 0; j < btns.length; j++) btns[j].classList.toggle('on', +btns[j].dataset.p === i);
   if (i === 1) { drawChart(); renderCal(); }
-  $('vToggle').style.display = i === 2 ? 'flex' : 'none';
+  $('vToggle').style.display = 'none';
+  if (i === 2 || i === 3) {   // 明細、報表共用同一個「帳戶／年月」選單：切頁時搬過去
+    var lh = document.querySelector('.lhead');
+    if (i === 3) $('repHead').appendChild(lh); else $('p3').insertBefore(lh, $('p3').firstChild);
+    VIEW = i === 3 ? 'rep' : 'rec'; renderTx();
+  }
   $('app').scrollTop = 0;
 }
 
-function renderAll() { BALIX = null; renderOverview(); try { renderInsights(); } catch (e) {} try { if (STTAB === 'd') renderDiv(); if ($('stk').style.display === 'block') renderStock(); } catch (e) {} try { renderStories(); } catch (e) {} try { renderSpark(); } catch (e) {} renderStocks(); renderCal(); renderTxOptions(); renderTx(); renderForm(); }
+function renderAll() { BALIX = null; renderOverview(); try { renderInsights(); } catch (e) {} try { if (STTAB === 'd') renderDiv(); if ($('stk').style.display === 'block') renderStock(); } catch (e) {} try { renderStories(); } catch (e) {} try { renderSpark(); } catch (e) {} renderStocks(); renderCal(); renderTxOptions(); renderTx(); }
 
 /* ---------- 總覽 ---------- */
 var BANKC = [[/將來/, '#3f7f8f'], [/中國信託|中信/, '#2f7d6b'], [/國泰/, '#4b8a5a'], [/永豐/, '#c0624a'], [/富邦/, '#3d6a9a'], [/玉山/, '#5f8f6f'], [/台股/, '#8c7a5b'], [/美股/, '#6c7f99']];
@@ -1168,9 +1197,7 @@ function renderTx() {
   var acc = $('txAcc').value, y = TXM.getFullYear(), m = TXM.getMonth();
   $('accLbl').textContent = acc || '全部帳戶';
   fillYM('txY', 'txM', y, TXYEAR ? 'y' : m, true);
-  $('vRec').style.display = VIEW === 'rec' ? 'block' : 'none';
-  $('vRep').style.display = VIEW === 'rep' ? 'block' : 'none';
-  if (VIEW === 'rep') return renderReport();
+  if (VIEW === 'rep') { renderReport(); try { renderRepExtra(); } catch (e) {} return; }
 
   var mine = D.tx.filter(function (t) { return !acc || t.acc === acc; });
   var html = '';
@@ -1227,6 +1254,38 @@ function catTotals(kind) {
   });
   var list = Object.keys(by).map(function (k) { return { c: k, v: by[k].v, n: by[k].n, fx: by[k].fx }; }).sort(function (a, b) { return b.v - a.v; });
   return { list: list, total: total };
+}
+// 報表頁：本月收支（和上月比）、近 6 個月支出
+function repSums(key, acc) {
+  var i = 0, o = 0;
+  D.tx.forEach(function (t) {
+    if (t.d.slice(0, key.length) !== key || (acc && t.acc !== acc) || !counted(t) || cur(t) !== 'TWD') return;
+    if (isNet(t)) o -= amt(t.inc); else { i += amt(t.inc); o += amt(t.out); }
+  });
+  return { i: i, o: o };
+}
+function renderRepExtra() {
+  var acc = $('txAcc').value, y = TXM.getFullYear(), m = TXM.getMonth();
+  var ym = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+  var cur0 = TXYEAR ? repSums(String(y), acc) : repSums(ym(TXM), acc);
+  var prev = TXYEAR ? repSums(String(y - 1), acc) : repSums(ym(new Date(y, m - 1, 1)), acc), lbl = TXYEAR ? '去年' : '上月';
+  var diff = function (a, b, good) {
+    if (!b) return '<span class="muted">—</span>';
+    var d = a - b, up = d >= 0, c = (up === good) ? 'gi' : 'ro';
+    return '<span class="' + c + '">' + (up ? '▲' : '▼') + ' $' + fmt(Math.abs(d)) + '</span>';
+  };
+  $('repSum').innerHTML = '<div class="card repsum"><div class="rs"><div class="k">收入</div><div class="v gi">$' + fmt(cur0.i) + '</div><div class="d">比' + lbl + ' ' + diff(cur0.i, prev.i, true) + '</div></div>' +
+    '<div class="rs"><div class="k">支出</div><div class="v ro">$' + fmt(cur0.o) + '</div><div class="d">比' + lbl + ' ' + diff(cur0.o, prev.o, false) + '</div></div>' +
+    '<div class="rs"><div class="k">結餘</div><div class="v">$' + fmt(cur0.i - cur0.o) + '</div><div class="d">' + (TXYEAR ? y + ' 年' : (m + 1) + ' 月') + '</div></div></div>';
+  if (TXYEAR) { $('repTrend').innerHTML = ''; return; }
+  var ms = [], max = 1;
+  for (var k = 5; k >= 0; k--) { var d = new Date(y, m - k, 1), s2 = repSums(ym(d), acc); ms.push({ d: d, o: s2.o }); if (s2.o > max) max = s2.o; }
+  var avg = ms.slice(0, 5).reduce(function (a, x) { return a + x.o; }, 0) / 5;
+  $('repTrend').innerHTML = '<div class="card"><h2 style="display:flex;justify-content:space-between"><span>近 6 個月支出</span><span class="muted" style="font-weight:500">前 5 月平均 $' + fmt(Math.round(avg)) + '</span></h2><div class="rbars">' +
+    ms.map(function (x, i) {
+      var h = Math.max(3, Math.round(x.o / max * 110)), on = i === 5;
+      return '<div class="rb' + (on ? ' on' : '') + '" onclick="TXM=new Date(' + x.d.getFullYear() + ',' + x.d.getMonth() + ',1);renderTx()"><div class="amt">' + short(x.o) + '</div><div class="bar" style="height:' + h + 'px"></div><div class="lb">' + (x.d.getMonth() + 1) + '月</div></div>';
+    }).join('') + '</div></div>';
 }
 function renderReport() {
   var out = catTotals('out'), inc = catTotals('in'), cr = RKIND === 'out' ? out : inc;
@@ -1388,7 +1447,7 @@ function saveEdit() {
     closeEdit(); toast(money ? '已更新，結餘重算完成' : '已更新');
     if (money) return load();
     D.tx.forEach(function (x) { if (x.s === t.s && x.r === t.r) { if (set.cat) x.cat = set.cat; if ('note' in set) x.note = set.note; if (set.type) x.ty = set.type; } });
-    renderTx(); if (SHEETCAT) renderSheet(); renderForm(); renderInsights(); refreshOvl();
+    renderTx(); if (SHEETCAT) renderSheet(); renderInsights(); refreshOvl();
   }).catch(editFail);
 }
 function voidTx() {
@@ -1510,6 +1569,7 @@ function cardInfo(a) {
 function md(dt) { return (dt.getMonth() + 1) + '/' + dt.getDate(); }
 function renderInsights() {
   var n = pending().length;
+ if ($('hdrCnt')) { $('hdrCnt').textContent = n > 99 ? '99+' : n; $('hdrCnt').style.display = n ? 'flex' : 'none'; }
   $('ovInbox').innerHTML = n ? '<div class="ibn" onclick="openInbox()"><div><b>待確認</b><div class="muted">未分類或推播自動記的</div></div><span class="cnt">' + n + '</span></div>' : '';
   var fx = fixedItems(), today = new Date().getDate();
   if (fx.length) {
