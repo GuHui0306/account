@@ -699,7 +699,7 @@ function renderBalances() {
     cards.map(function (a) {
       var c = cardInfo(a), pill = '';
       if (c) pill = c.billed > 0.5 ? '<div class="pill">應繳 ' + money(c.billed, c.cur) + '<small>' + md(c.due) + ' 扣款</small></div>'
-                                   : '<div class="pill">本期 ' + money(c.unbilled, c.cur) + '<small>' + md(c.nextClose) + ' 結帳</small></div>';
+                                   : '<div class="pill">下期預估 ' + money(c.unbilled, c.cur) + '<small>' + md(c.nextClose) + ' 結帳</small></div>';
       return tile(a.name, 'wide debt', '<div style="min-width:0"><div class="n"><i></i>' + esc(a.name) + '</div><div class="v">$' + fmt(Math.abs(a.twd)) + '</div></div>' + pill, acc(a));
     }).join('') + '</div>';
   if (num(st.total)) h += '<div class="bsec"><b>股票</b><span>$' + fmt(st.total) + '</span></div><div class="bgrid">' +
@@ -1563,7 +1563,7 @@ function cardInfo(a) {
   });
   var debt = Math.max(0, -(num(a.bal) ? a.bal : 0));
   // 分期：帳本在刷卡日記全額，帳單每期只收一期 → 扣掉還沒到期的分期
-  var billed = Math.max(0, -(atClose || 0) - instRemain(a.name, close) - paid);
+  var billed = paid > 0 ? 0 : Math.max(0, -(atClose || 0) - instRemain(a.name, close));   // 結帳後有卡費扣款＝這期繳清，差額（晚入帳的）併進下一期
   var nextEst = Math.max(0, debt - billed - instRemain(a.name, nextClose));
   var nextDue = new Date(nextClose.getFullYear(), nextClose.getMonth() + (cy.due > cy.close ? 0 : 1), cy.due);
   return { name: a.name, cur: a.cur || 'TWD', debt: debt, billed: billed, unbilled: nextEst, nextInst: instThis(a.name, nextClose),
