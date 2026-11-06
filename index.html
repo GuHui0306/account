@@ -47,6 +47,8 @@ nav button.on{color:var(--acc)}
 .cal .e{background:none}
 .cal .pos{background:rgba(255,107,107,.18)}.cal .neg{background:rgba(76,208,138,.15)}
 .cal b{font-size:12px;display:block;margin-bottom:2px}
+.cal div.fw{box-shadow:inset 0 0 0 1.5px #5b86b5}
+.cal div.fw{position:relative}.cal .fl{position:absolute;top:4px;right:3px;letter-spacing:-.2px;font-style:normal;font-size:9px;font-weight:600;line-height:14px;padding:0 4px;border-radius:7px;background:#5b86b5;color:#fff}
 select,input{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:16px;margin:6px 0 10px;font-family:inherit}
 label{font-size:13px;color:var(--muted)}
 .btn{width:100%;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:14px;font-size:16px;font-family:inherit}
@@ -459,7 +461,7 @@ select,input{background:var(--card);border:1px solid var(--line);color:var(--tex
       <div class="ympick"><select id="calY" class="ysel" onchange="pickCal()"></select><select id="calM" class="ysel" onchange="pickCal()"></select></div>
       <div id="calSum" class="muted" style="text-align:center;margin:-2px 0 10px"></div>
       <div class="cal" id="cal"></div>
-      <div class="muted" style="margin-top:10px">點日期看當天損益組成・已扣除資金進出</div>
+      <div class="muted" style="margin-top:10px">點日期看當天損益組成・<span style="color:#5b86b5">藍框＝當天有加碼／減碼</span>（已扣除，不算損益）</div>
     </div>
     <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h2 style="margin:0">持股</h2><select id="stF" class="ysel" onchange="renderStocks()"><option value="">全部</option><option value="台股">台股</option><option value="美股">美股</option></select></div><div id="stSum" class="grid3" style="margin:8px 0 6px;padding-bottom:10px;border-bottom:1px solid var(--line)"></div><div id="stList"></div></div>
     </div>
@@ -975,7 +977,9 @@ function renderCal() {
       body = '<span class="' + cls(h.pnl) + '">' + pct(h.pct) + '<br>' + sgn(h.pnl / 1000, 1) + 'k</span>';
       sum += h.pnl; if (num(h.pct)) prod *= 1 + h.pct; n++; if (h.pnl > 0) upDays++;
     }
-    html += '<div class="' + c + '"' + (h && num(h.pnl) ? ' data-d="' + key + '"' : '') + '><b>' + d + '</b>' + body + '</div>';
+    var fl = h && Math.round(h.flow || 0), ft = '';
+    if (fl) { var kv = fl / 1000; ft = '<i class="fl">' + (fl > 0 ? '+' : '-') + (Math.abs(kv) >= 10 ? Math.round(Math.abs(kv)) : Math.abs(kv).toFixed(1).replace(/\.0$/, '')) + 'k</i>'; c += ' fw'; }
+    html += '<div class="' + c + '"' + (h && num(h.pnl) ? ' data-d="' + key + '"' : '') + '>' + ft + '<b>' + d + '</b>' + body + '</div>';
   }
   $('cal').innerHTML = html;
   fillYM('calY', 'calM', y, m);
