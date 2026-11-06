@@ -96,6 +96,13 @@ label{font-size:13px;color:var(--muted)}
 .tgrid .hd{color:var(--muted);font-size:12px}
 .tgrid .big{font-size:18px;font-weight:700;letter-spacing:-.3px;margin:0}
 .tgrid .sm{font-size:14px}
+.cdebt{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.cdebt .ttl{font-size:12px;color:var(--muted);margin-bottom:4px}
+.cdebt .r{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:4px 0}
+.cdebt .k{font-size:14px;font-weight:600}.cdebt .v{font-size:18px;font-weight:700}
+.cdebt .s{font-size:12px;color:var(--muted);margin-top:1px}
+.cdebt .sub{padding-left:12px;border-left:2px solid var(--line);margin:4px 0 0 2px}
+.cdebt .sub .k{font-weight:500;font-size:13px}.cdebt .sub .v{font-size:15px}
 .ycal{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
 .ycal .mc{background:var(--card2);border-radius:8px;padding:5px 2px 6px;cursor:pointer;min-height:64px;text-align:center;overflow:hidden}
 .ycal .mc b{display:block;font-size:13px;margin-bottom:2px;color:#c9c9f5}
@@ -1202,6 +1209,24 @@ function cellAmts(s) {
   });
   return h;
 }
+// 信用卡頁：現有貸款（目前欠款、本期／下期、分期剩幾期）
+function cardDebtHtml(acc) {
+  var a = acc && D.accounts.filter(function (x) { return x.name === acc; })[0], ci = a && cardInfo(a);
+  if (!ci) return '';
+  var ym = ymd2(ci.close).slice(0, 7);
+  var sub = ci.billed > 0.5 ? '本期應繳 ' + money(ci.billed, ci.cur) + '・' + md(ci.due) + ' 扣款'
+                            : '本期已繳清・下期預估 ' + money(ci.unbilled, ci.cur) + '・' + md(ci.nextClose) + ' 結帳';
+  var h = '<div class="cdebt"><div class="ttl">現有貸款</div>' +
+    '<div class="r"><div><div class="k">信用卡欠款</div><div class="s">' + sub + '</div></div><div class="v">' + money(ci.debt, ci.cur) + '</div></div>';
+  (D.inst || []).filter(function (i) { return i.acc === acc; }).forEach(function (i) {
+    var k = Math.max(0, Math.min(i.n, mdiff(i.first, ym) + 1)), left = i.n - k;
+    if (left <= 0) return;
+    var end = new Date(+i.first.slice(0, 4), +i.first.slice(5, 7) - 1 + i.n - 1, 1);
+    h += '<div class="r sub"><div><div class="k">其中分期・' + esc(i.name) + '</div><div class="s">剩 ' + left + '/' + i.n + ' 期・每期 ' + money(i.per, ci.cur) +
+      '・到 ' + end.getFullYear() + '/' + (end.getMonth() + 1) + '</div></div><div class="v">' + money(left * i.per, ci.cur) + '</div></div>';
+  });
+  return h + '</div>';
+}
 function totalsHtml(s) {
   var t = s.TWD, n = function (v, c) { return fmt(v, c === 'USD' && v ? 2 : 0); };
   var html = '<div class="tgrid"><div class="cl"></div><div class="hd">收入</div><div class="hd">支出</div><div class="hd">結餘</div>' +
@@ -1247,7 +1272,7 @@ function renderTx() {
   }
   $('lcal').innerHTML = html;
   var rows = periodRows(acc);
-  $('ltot').innerHTML = totalsHtml(sums(rows));
+  $('ltot').innerHTML = totalsHtml(sums(rows)) + cardDebtHtml(acc);
   $('ltot').className = '';
   $('dayList').innerHTML = dayGroups(rows, 'day-') || '<div class="card muted" style="text-align:center">' + (TXYEAR ? '今年' : '這個月') + '沒有紀錄</div>';
 }
