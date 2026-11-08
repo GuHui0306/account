@@ -174,7 +174,7 @@ label{font-size:13px;color:var(--muted)}
 .drow.tot .t{font-weight:700}
 .comp{display:grid;grid-template-columns:1fr 110px 92px;align-items:center;gap:8px;padding:9px 0}
 .comp .cd{font-size:15px;font-weight:600}.comp .cm{font-size:11px;color:var(--muted)}.comp .cfx{font-size:11px;color:#f0a35e}
-.hold .hg .tc{font-size:11px;color:var(--muted);font-weight:400;margin-top:2px;white-space:nowrap}.hold .hsplit{font-size:12px;color:var(--muted);margin:2px 0 6px}.hold .hsplit b{font-weight:600}
+.hold .hg .tc{font-size:11px;color:var(--muted);font-weight:400;margin-top:2px;white-space:nowrap}.hold .hsplit{font-size:12px;color:var(--muted);margin:2px 0 6px;text-align:right}.hold .hsplit b{font-weight:600}
 .comp .cfl{grid-column:1/-1;justify-self:start;margin-top:-2px;font-size:11px;line-height:1.5;padding:1px 8px;border-radius:9px;background:rgba(84,120,160,.12);color:#4f7299}
 .comp .cfl b{font-weight:600}.dnote{font-size:12px;color:var(--muted);margin:10px 2px 18px}
 .comp .cb{position:relative;height:12px}
@@ -793,7 +793,8 @@ function renderStocks() {
       '<div class="hh"><div class="nm">' + esc(x.name) + '<span class="cd">' + esc(x.code) + '</span><span class="px">' + (num(x.price) ? fmt(x.price, 2) : esc(x.price)) + '</span></div><div class="mv">' + fmt(x.twd) + '</div></div>' +
       '<div class="hs"><span class="tg">' + (us ? '美股・USD' : '台股・TWD') + '</span><span class="' + cls(pnl) + '">' + sgn(pnl) + '　' + pct(r) + '</span></div>' +
       (us && pp !== null ? '<div class="hsplit">股價 <b class="' + cls(pp) + '">' + sgn(pp) + '</b>・匯率 <b class="' + cls(fp) + '">' + sgn(fp) + '</b></div>' : '') +
-      '<div class="hg">' + cell('股數', fmt(x.qty, us ? 4 : 0)) + cell('均價', fmt(avg, 2)) + cell(us ? '美金成本' : '成本', fmt(x.cost, us ? 2 : 0) + (us ? '<div class="tc">台幣 ' + fmt(x.tc) + '<br>均匯率 ' + fmt(x.cost ? x.tc / x.cost : null, 2) + '</div>' : '')) + '</div>' +
+      '<div class="hg">' + cell('股數', fmt(x.qty, us ? 4 : 0)) + cell('均價', fmt(avg, 2)) + cell(us ? 'USD成本' : '成本', fmt(x.cost, us ? 2 : 0)) +
+        (us ? '<div></div>' + cell('均匯率', fmt(x.cost ? x.tc / x.cost : null, 2)) + cell('TWD成本', fmt(x.tc)) : '') + '</div>' +
       '</div>';
   }).join('');
 }
