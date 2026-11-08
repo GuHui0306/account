@@ -174,6 +174,7 @@ label{font-size:13px;color:var(--muted)}
 .drow.tot .t{font-weight:700}
 .comp{display:grid;grid-template-columns:1fr 110px 92px;align-items:center;gap:8px;padding:9px 0}
 .comp .cd{font-size:15px;font-weight:600}.comp .cm{font-size:11px;color:var(--muted)}.comp .cfx{font-size:11px;color:#f0a35e}
+.ssub{font-size:12px;color:var(--muted);margin-top:3px}.ssub b{font-weight:600}
 .hold .hg .tc{font-size:11px;color:var(--muted);font-weight:400;margin-top:2px;white-space:nowrap}.hold .hsplit{font-size:12px;color:var(--muted);margin:2px 0 6px;text-align:right}.hold .hsplit b{font-weight:600}
 .comp .cfl{grid-column:1/-1;justify-self:start;margin-top:-2px;font-size:11px;line-height:1.5;padding:1px 8px;border-radius:9px;background:rgba(84,120,160,.12);color:#4f7299}
 .comp .cfl b{font-weight:600}.dnote{font-size:12px;color:var(--muted);margin:10px 2px 18px}
@@ -773,9 +774,12 @@ function renderStocks() {
   var lv = 0, lc = 0;
   list.forEach(function (x) { if (num(x.twd) && num(x.cost)) { lv += x.twd; lc += twdCostOf(x, fx); } });
   var lp = lv - lc;
+  var usOnly = mk === '美股', lpp = 0;   // 只看美股時：損益拆成股價、匯率
+  if (usOnly) list.forEach(function (x) { if (num(x.price) && num(x.cost) && num(x.qty)) lpp += (x.qty * x.price - x.cost) * fx; });
+  var lfp = lp - lpp, sub = function (k, v) { return '<div class="ssub">' + k + ' <b class="' + cls(v) + '">' + sgn(v) + '</b></div>'; };
   $('stSum').innerHTML = '<div><div class="muted">市值</div><div class="v">' + fmt(lv) + '</div></div>' +
-    '<div><div class="muted">成本</div><div class="v">' + fmt(lc) + '</div></div>' +
-    '<div><div class="muted">未實現損益</div><div class="v ' + cls(lp) + '">' + sgn(lp) + '</div><div class="muted ' + cls(lp) + '">' + pct(lc ? lp / lc : null) + '</div></div>';
+    '<div><div class="muted">成本</div><div class="v">' + fmt(lc) + '</div>' + (usOnly ? sub('股價', lpp) : '') + '</div>' +
+    '<div><div class="muted">未實現損益</div><div class="v ' + cls(lp) + '">' + sgn(lp) + '</div><div class="muted ' + cls(lp) + '">' + pct(lc ? lp / lc : null) + '</div>' + (usOnly ? sub('匯率', lfp) : '') + '</div>';
   // 同一代號（例如國泰、富邦的台積電）合併成一列
   var merged = [], byCode = {};
   list.forEach(function (x) {
