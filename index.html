@@ -124,6 +124,7 @@ label{font-size:13px;color:var(--muted)}
 .trow .r{text-align:right;white-space:nowrap}.trow .r .a{font-size:16px;font-weight:600}
 .trow .r .m{font-size:11px;color:var(--muted);margin-top:2px}
 .a.x{color:var(--muted)}
+.trow .r .a .apx{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:1px}
 #vToggle{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom));display:none;background:rgba(44,44,46,.92);border:1px solid var(--line);border-radius:20px;padding:3px;z-index:6;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 #vToggle button{background:none;border:0;color:var(--muted);font-size:14px;padding:7px 20px;border-radius:17px;font-family:inherit}
 #vToggle button.on{background:#48484a;color:var(--text)}
@@ -647,7 +648,45 @@ function api(params, post) {
 function showLogin() { $('loading').style.display = 'none'; $('app').style.display = 'none'; $('nav').style.display = 'none'; $('login').style.display = 'block'; }
 function login() { TK = $('pw').value.trim(); if (!TK) return; store('tk', TK); load(); }
 
-function indexTx() { (D.tx || []).forEach(function (t, i) { t._i = i; }); }
+function indexTx() { (D.tx || []).forEach(function (t, i) { t._i = i; }); try { buildFx(); } catch (e) {} }
+// 外幣折台幣：用「換匯時實際付出的台幣」算移動平均成本（跟美金匯率分頁同一個概念）
+//   台幣帳戶「轉至 X日圓/美金」那筆的台幣 ÷ 換到的外幣 → 新的平均成本；之後每筆外幣收支（含外幣信用卡）都用當時的平均成本折台幣
+var FXDEF = { JPY: 0.21, USD: 32 };
+function buildFx() {
+  var tx = D.tx || [], byCur = {};
+  tx.forEach(function (t) { t.twd = null; });
+  var asc = tx.slice().reverse();   // 試算表是新→舊
+  ['JPY', 'USD'].forEach(function (c) {
+    var avg = null, tl = [];   // tl：[時間鍵, 平均成本]
+    asc.forEach(function (t) {
+      if (cur(t) !== c || isCard(t.acc) || !(amt(t.inc) > 0) || t.cat !== '轉帳') return;
+      var q = amt(t.inc), twd = null, k = t.d + ' ' + String(t.t || '').padStart(5, '0');
+      // 對面那筆台幣（同一天、轉帳、備註寫「轉至 這個帳戶」）
+      var best = null;
+      tx.forEach(function (x) {
+        if (x.d !== t.d || cur(x) !== 'TWD' || x.cat !== '轉帳' || !(amt(x.out) > 0) || String(x.note || '').indexOf('轉至 ' + t.acc) < 0 || x._fxUsed) return;
+        var r = amt(x.out) / q, ref = avg || FXDEF[c], d = Math.abs(Math.log(r / ref));
+        if (d < 0.3 && (!best || d < best.d)) best = { x: x, d: d };
+      });
+      if (best) { twd = amt(best.x.out); best.x._fxUsed = 1; }
+      else { var m = String(t.note || '').match(/(\d+\.\d+)）\s*$/) || String(t.note || '').match(/匯率\s*(\d+(?:\.\d+)?)/); if (m) twd = q * parseFloat(m[1]); }
+      if (twd === null) return;
+      var before = Math.max(0, amt(t.bal) - q);
+      avg = avg === null || before <= 0 ? twd / q : (before * avg + twd) / (before + q);
+      tl.push([k, avg]);
+    });
+    byCur[c] = tl;
+  });
+  tx.forEach(function (x) { delete x._fxUsed; });
+  tx.forEach(function (t) {
+    var c = cur(t); if (c === 'TWD') return;
+    var tl = byCur[c] || [], k = t.d + ' ' + String(t.t || '').padStart(5, '0'), i = lastAt(tl, k);
+    var r = i >= 0 ? tl[i][1] : tl.length ? tl[0][1] : (c === 'USD' && typeof fxAt === 'function' ? fxAt(t.d) : FXDEF[c]);
+    t.twd = r;   // 每 1 單位外幣的台幣成本
+  });
+}
+// 折台幣金額（台幣就是原數字）
+function tw(t, v) { return cur(t) === 'TWD' ? v : Math.round(v * (t.twd || FXDEF[cur(t)] || 1)); }
 function showApp() { $('loading').style.display = 'none'; $('login').style.display = 'none'; $('app').style.display = 'block'; $('nav').style.display = 'flex'; }
 function setSync(t) { var e = $('syncTxt'); if (e) e.textContent = '含股票' + (t ? '・' + t : ''); }
 var LOADING = false;
@@ -1170,8 +1209,13 @@ function shortC(n, c) { return c === 'TWD' ? short(n) : curSym(c) + (c === 'USD'
 function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function sums(rows) {
   var s = {}; CURS.forEach(function (c) { s[c] = { i: 0, o: 0 }; });
-  rows.forEach(function (t) { if (counted(t)) { var c = cur(t); if (isNet(t)) s[c].o -= amt(t.inc); else { s[c].i += amt(t.inc); s[c].o += amt(t.out); } } });
-  return s;
+  rows.forEach(function (t) {
+    if (!counted(t)) return;
+    var c = cur(t), i = amt(t.inc), o = amt(t.out);
+    if (isNet(t)) { s[c].o -= i; if (c !== 'TWD') s.TWD.o -= tw(t, i); }
+    else { s[c].i += i; s[c].o += o; if (c !== 'TWD') { s.TWD.i += tw(t, i); s.TWD.o += tw(t, o); } }
+  });
+  return s;   // s.TWD＝全部折台幣的合計；s.USD / s.JPY＝其中外幣的原幣金額
 }
 
 function renderTxOptions() {
@@ -1197,7 +1241,7 @@ function sortRows(rows) {
 }
 function sumLine(s) {
   var parts = [];
-  CURS.forEach(function (c) {
+  ['TWD'].forEach(function (c) {
     if (s[c].i) parts.push('<span class="gi">收</span> <span class="s">' + money(s[c].i, c) + '</span>');
     if (s[c].o) parts.push('<span class="ro">支</span> <span class="s">' + money(s[c].o, c) + '</span>');
   });
@@ -1211,7 +1255,7 @@ function dayGroups(rows, idPrefix) {
     return '<div class="dgrp"' + (idPrefix ? ' id="' + idPrefix + d + '"' : '') + '><div class="dgh"><span>' + (dt.getMonth() + 1) + '月' + dt.getDate() + '日 週' + WK[dt.getDay()] + '</span><span style="text-align:right">' + sumLine(sums(groups[d])) + '</span></div>' +
       groups[d].map(function (t) {
         var isOut = t.out !== '' && t.out != null, v = amt(isOut ? t.out : t.inc), c = counted(t);
-        var a = (isOut ? '-' : '+') + money(v, cur(t));
+        var a = (isOut ? '-' : '+') + money(v, cur(t)) + (cur(t) !== 'TWD' ? '<span class="apx">≈$' + fmt(tw(t, v)) + '</span>' : '');
         var tg = t.ty === '不計' ? '<span class="tag2">不計</span>' : t.ty === '推播' ? '<span class="tag2">推播</span>' : '';
         return '<div class="trow" onclick="editTx(' + t._i + ')">' + icon(t.cat) + '<div class="l"><div class="c">' + esc(t.cat || '未分類') + tg + '</div><div class="n">' + esc(t.note || '') + '</div></div>' +
           '<div class="r"><div class="a ' + (!c ? 'x' : isOut ? 'ro' : 'gi') + '">' + a + '</div><div class="m">' + esc(t.acc) + '・' + esc(t.t) + '</div></div></div>';
@@ -1229,10 +1273,6 @@ function cellAmts(s) {
   var h = '';
   if (s.TWD.i) h += '<div class="gi">' + short(s.TWD.i) + '</div>';
   if (s.TWD.o) h += '<div class="ro">' + short(s.TWD.o) + '</div>';
-  ['USD', 'JPY'].forEach(function (c) {
-    if (s[c].i) h += '<div class="gi fx">' + shortC(s[c].i, c) + '</div>';
-    if (s[c].o) h += '<div class="ro fx">' + shortC(s[c].o, c) + '</div>';
-  });
   return h;
 }
 // 信用卡頁：現有貸款（目前欠款、本期／下期、分期剩幾期）
@@ -1256,10 +1296,10 @@ function cardDebtHtml(acc) {
 function totalsHtml(s) {
   var t = s.TWD, n = function (v, c) { return fmt(v, c === 'USD' && v ? 2 : 0); };
   var html = '<div class="tgrid"><div class="cl"></div><div class="hd">收入</div><div class="hd">支出</div><div class="hd">結餘</div>' +
-    '<div class="cl">台幣 $</div><div class="big gi">' + fmt(t.i) + '</div><div class="big ro">' + fmt(t.o) + '</div><div class="big">' + (t.i - t.o < 0 ? '-' : '') + fmt(Math.abs(t.i - t.o)) + '</div>';
+    '<div class="cl">' + (s.USD.i || s.USD.o || s.JPY.i || s.JPY.o ? '合計 $' : '台幣 $') + '</div><div class="big gi">' + fmt(t.i) + '</div><div class="big ro">' + fmt(t.o) + '</div><div class="big">' + (t.i - t.o < 0 ? '-' : '') + fmt(Math.abs(t.i - t.o)) + '</div>';
   ['USD', 'JPY'].forEach(function (c) {
     var x = s[c]; if (!x.i && !x.o) return;
-    html += '<div class="cl">' + CURNAME[c] + ' ' + curSym(c) + '</div><div class="sm gi">' + n(x.i, c) + '</div><div class="sm ro">' + n(x.o, c) + '</div><div class="sm">' + (x.i - x.o < 0 ? '-' : '') + n(Math.abs(x.i - x.o), c) + '</div>';
+    html += '<div class="cl">其中' + CURNAME[c] + ' ' + curSym(c) + '</div><div class="sm gi">' + n(x.i, c) + '</div><div class="sm ro">' + n(x.o, c) + '</div><div class="sm">' + (x.i - x.o < 0 ? '-' : '') + n(Math.abs(x.i - x.o), c) + '</div>';
   });
   return html + '</div>';
 }
@@ -1319,10 +1359,10 @@ function catTotals(kind) {
     var v = amt(kind === 'out' ? t.out : t.inc);
     if (isNet(t)) { if (kind !== 'out') return; v = -amt(t.inc); }
     if (!v) return;
-    var k = t.cat || '未分類', c = cur(t);
+    var k = t.cat || '未分類', c = cur(t), vt = v < 0 ? -tw(t, -v) : tw(t, v);
     var o = by[k] || (by[k] = { v: 0, n: 0, fx: {} });
-    o.n++;
-    if (c === 'TWD') { o.v += v; total += v; } else o.fx[c] = (o.fx[c] || 0) + v;
+    o.n++; o.v += vt; total += vt;
+    if (c !== 'TWD') o.fx[c] = (o.fx[c] || 0) + v;
   });
   var list = Object.keys(by).map(function (k) { return { c: k, v: by[k].v, n: by[k].n, fx: by[k].fx }; }).sort(function (a, b) { return b.v - a.v; });
   return { list: list, total: total };
@@ -1331,8 +1371,8 @@ function catTotals(kind) {
 function repSums(key, acc) {
   var i = 0, o = 0;
   D.tx.forEach(function (t) {
-    if (t.d.slice(0, key.length) !== key || (acc && t.acc !== acc) || !counted(t) || cur(t) !== 'TWD') return;
-    if (isNet(t)) o -= amt(t.inc); else { i += amt(t.inc); o += amt(t.out); }
+    if (t.d.slice(0, key.length) !== key || (acc && t.acc !== acc) || !counted(t)) return;
+    if (isNet(t)) o -= tw(t, amt(t.inc)); else { i += tw(t, amt(t.inc)); o += tw(t, amt(t.out)); }
   });
   return { i: i, o: o };
 }
@@ -1385,13 +1425,13 @@ function renderReport() {
     var a = si[c] || 0, b = so[c] || 0, dp = c === 'USD' ? 2 : 0;
     if (c !== 'TWD' && !a && !b) return;
     var main = c === 'TWD' ? ' main' : '';
-    g += '<div class="cl">' + CURNAME[c] + ' ' + curSym(c) + '</div><div class="gi' + main + '">' + fmt(a, a ? dp : 0) + '</div><div class="ro' + main + '">' + fmt(b, b ? dp : 0) + '</div>';
+    g += '<div class="cl">' + (c === 'TWD' ? (Object.keys(si).length + Object.keys(so).length > 2 ? '合計 $' : '台幣 $') : '其中' + CURNAME[c] + ' ' + curSym(c)) + '</div><div class="gi' + main + '">' + fmt(a, a ? dp : 0) + '</div><div class="ro' + main + '">' + fmt(b, b ? dp : 0) + '</div>';
   });
   $('kseg').innerHTML = g;
   $('catStat').innerHTML = cr.list.map(function (x) {
     var f = cr.total ? x.v / cr.total : 0, fx = Object.keys(x.fx).map(function (c) { return money(x.fx[c], c); }).join('　');
     return '<div class="crow" data-c="' + esc(x.c) + '">' + icon(x.c) + '<div class="l"><div class="top"><span class="nm">' + esc(x.c) + (x.v ? '<span class="pc">' + (f * 100).toFixed(2) + '%</span>' : '') + '</span><span class="amt">' + (x.v ? money(x.v) : '') + '</span></div>' +
-      (fx ? '<div class="fxl" style="text-align:right">' + fx + '</div>' : '') +
+      (fx ? '<div class="fxl" style="text-align:right">含 ' + fx + '</div>' : '') +
       '<div class="bt"><div class="bar2"><i style="width:' + (f * 100).toFixed(1) + '%;background:' + ccolor(x.c) + '"></i></div><span class="cnt">' + x.n + ' 筆</span></div></div><span class="chev">›</span></div>';
   }).join('') || '<div class="muted" style="text-align:center;padding:16px 0">' + (TXYEAR ? '今年' : '這個月') + '沒有' + (RKIND === 'out' ? '支出' : '收入') + '</div>';
 }
@@ -1404,8 +1444,9 @@ function renderSheet() {
   $('shTitle').textContent = TXYEAR ? y + ' 全年' : mm + '.1~' + mm + '.' + last;
   var acc = $('txAcc').value, isOut = RKIND === 'out', tot = {};
   var rows = periodRows(acc).filter(function (t) { return counted(t) && (t.cat || '未分類') === SHEETCAT && (isNet(t) ? isOut : amt(isOut ? t.out : t.inc) > 0); });
-  rows.forEach(function (t) { var c = cur(t); tot[c] = (tot[c] || 0) + (isNet(t) ? -amt(t.inc) : amt(isOut ? t.out : t.inc)); });
-  var totTxt = CURS.filter(function (c) { return tot[c]; }).map(function (c) { return money(tot[c], c); }).join('　') || '$0';
+  rows.forEach(function (t) { var c = cur(t), v = isNet(t) ? -amt(t.inc) : amt(isOut ? t.out : t.inc); tot.TWD = (tot.TWD || 0) + (v < 0 ? -tw(t, -v) : tw(t, v)); if (c !== 'TWD') tot[c] = (tot[c] || 0) + v; });
+  var fxs = ['USD', 'JPY'].filter(function (c) { return tot[c]; }).map(function (c) { return money(tot[c], c); }).join('　');
+  var totTxt = money(tot.TWD || 0) + (fxs ? '<span class="muted" style="font-size:12px">（含 ' + fxs + '）</span>' : '');
   $('shTot').innerHTML = '<div class="t">' + icon(SHEETCAT) + esc(SHEETCAT) + ' 總計</div><div class="v"><span class="' + (isOut ? 'ro' : 'gi') + '">' + (isOut ? '支' : '收') + '</span> ' + totTxt + '</div>';
   $('shList').innerHTML = dayGroups(rows, '') || '<div class="card muted" style="text-align:center">沒有紀錄</div>';
 }
